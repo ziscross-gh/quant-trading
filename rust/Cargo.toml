@@ -53,6 +53,9 @@ nalgebra = "0.32"
 # CSV handling
 csv = "1.3"
 
+# XML parsing (for RSS feeds)
+quick-xml = { version = "0.31", features = ["serialize"] }
+
 # Scheduling
 tokio-cron-scheduler = "0.9"
 

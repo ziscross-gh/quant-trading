@@ -14,6 +14,8 @@ pub struct Config {
     pub backtest: BacktestConfig,
     pub execution: ExecutionConfig,
     pub logging: LoggingConfig,
+    #[serde(default)]
+    pub news: NewsConfig,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -119,6 +121,22 @@ pub struct LoggingConfig {
     pub log_to_console: bool,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct NewsConfig {
+    #[serde(default = "default_news_enabled")]
+    pub enabled: bool,
+    #[serde(default = "default_news_cache_ttl")]
+    pub cache_ttl_seconds: i64,
+    #[serde(default = "default_news_lookback_hours")]
+    pub lookback_hours: i64,
+    #[serde(default = "default_news_sentiment_threshold")]
+    pub sentiment_threshold: f64,
+    #[serde(default = "default_news_weight")]
+    pub sentiment_weight: f64,
+    #[serde(default = "default_news_limit")]
+    pub article_limit: usize,
+}
+
 // Default value functions
 fn default_symbol_alt() -> String { "XAUUSD".to_string() }
 fn default_initial_capital() -> f64 { 100000.0 }
@@ -157,6 +175,12 @@ fn default_log_level() -> String { "INFO".to_string() }
 fn default_log_dir() -> String { "logs".to_string() }
 fn default_log_to_file() -> bool { true }
 fn default_log_to_console() -> bool { true }
+fn default_news_enabled() -> bool { true }
+fn default_news_cache_ttl() -> i64 { 300 } // 5 minutes
+fn default_news_lookback_hours() -> i64 { 24 } // 24 hours
+fn default_news_sentiment_threshold() -> f64 { 0.05 } // -0.05 to 0.05 is neutral
+fn default_news_weight() -> f64 { 0.3 } // 30% weight in signal
+fn default_news_limit() -> usize { 20 } // Fetch up to 20 articles
 
 impl Config {
     /// Load configuration from a YAML file
@@ -243,6 +267,27 @@ impl Default for Config {
                 log_to_file: default_log_to_file(),
                 log_to_console: default_log_to_console(),
             },
+            news: NewsConfig {
+                enabled: default_news_enabled(),
+                cache_ttl_seconds: default_news_cache_ttl(),
+                lookback_hours: default_news_lookback_hours(),
+                sentiment_threshold: default_news_sentiment_threshold(),
+                sentiment_weight: default_news_weight(),
+                article_limit: default_news_limit(),
+            },
+        }
+    }
+}
+
+impl Default for NewsConfig {
+    fn default() -> Self {
+        Self {
+            enabled: default_news_enabled(),
+            cache_ttl_seconds: default_news_cache_ttl(),
+            lookback_hours: default_news_lookback_hours(),
+            sentiment_threshold: default_news_sentiment_threshold(),
+            sentiment_weight: default_news_weight(),
+            article_limit: default_news_limit(),
         }
     }
 }

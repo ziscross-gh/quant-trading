@@ -23,6 +23,7 @@ pub mod error;
 pub mod brokers;
 pub mod database;
 pub mod notifications;
+pub mod news;
 
 pub use error::{Error, Result};
 pub use types::*;

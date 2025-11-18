@@ -5,8 +5,10 @@ use async_trait::async_trait;
 use chrono::Utc;
 
 pub mod gold_momentum;
+pub mod news_enhanced;
 
 pub use gold_momentum::GoldMomentumStrategy;
+pub use news_enhanced::NewsEnhancedStrategy;
 
 /// Base trait for trading strategies
 #[async_trait]
@@ -38,6 +40,18 @@ pub trait Strategy: Send + Sync {
 
     /// Reset strategy state
     fn reset(&mut self);
+
+    /// Execute strategy with news sentiment (async version)
+    /// Default implementation just calls generate_signal
+    async fn execute(&mut self, data: &MarketData, indicators: &IndicatorData) -> Result<Signal> {
+        self.generate_signal(data, indicators)
+    }
+
+    /// Generate signal with news enhancement (for news-aware strategies)
+    /// Default implementation just calls generate_signal
+    async fn generate_signal_with_news(&mut self, data: &MarketData, indicators: &IndicatorData) -> Result<Signal> {
+        self.generate_signal(data, indicators)
+    }
 }
 
 /// Container for calculated indicators
