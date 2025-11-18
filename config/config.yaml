@@ -1,0 +1,76 @@
+# Gold/USD Autonomous Trading System Configuration
+
+# Trading Parameters
+trading:
+  symbol: "GC=F"  # Gold Futures (Yahoo Finance)
+  symbol_alt: "XAUUSD"  # Alternative Gold/USD symbol
+  initial_capital: 100000  # Initial capital in USD
+  position_size: 0.1  # Percentage of capital per trade (10%)
+  max_positions: 3  # Maximum concurrent positions
+  trading_mode: "paper"  # Options: paper, live
+
+# Data Settings
+data:
+  provider: "yfinance"  # Options: yfinance, alpha_vantage
+  interval: "1h"  # Options: 1m, 5m, 15m, 30m, 1h, 1d
+  lookback_days: 365  # Days of historical data to fetch
+  cache_enabled: true
+  cache_dir: "data/raw"
+
+# Strategy Parameters
+strategy:
+  name: "GoldMomentumStrategy"
+  # Moving Average parameters
+  fast_ma: 20
+  slow_ma: 50
+  # RSI parameters
+  rsi_period: 14
+  rsi_oversold: 30
+  rsi_overbought: 70
+  # Bollinger Bands
+  bb_period: 20
+  bb_std: 2
+  # Volume confirmation
+  volume_ma: 20
+
+# Risk Management
+risk:
+  max_drawdown_pct: 15  # Maximum portfolio drawdown (%)
+  stop_loss_pct: 2  # Stop loss per trade (%)
+  take_profit_pct: 5  # Take profit per trade (%)
+  risk_per_trade_pct: 1  # Maximum risk per trade (%)
+  max_daily_loss_pct: 5  # Maximum daily loss (%)
+  trailing_stop_pct: 1.5  # Trailing stop (%)
+
+# Backtesting
+backtest:
+  start_date: "2020-01-01"
+  end_date: "2024-12-31"
+  commission: 0.001  # 0.1% commission
+  slippage: 0.0005  # 0.05% slippage
+
+# Execution
+execution:
+  check_interval: 60  # Seconds between strategy evaluations
+  order_type: "market"  # Options: market, limit
+  retry_attempts: 3
+  timeout: 30
+
+# Logging
+logging:
+  level: "INFO"  # Options: DEBUG, INFO, WARNING, ERROR
+  log_dir: "logs"
+  log_to_file: true
+  log_to_console: true
+
+# Alerts
+alerts:
+  enabled: true
+  email_enabled: false
+  email_address: ""
+
+# API Keys (use .env file for sensitive data)
+api_keys:
+  alpha_vantage: "${ALPHA_VANTAGE_KEY}"
+  broker_key: "${BROKER_API_KEY}"
+  broker_secret: "${BROKER_API_SECRET}"
