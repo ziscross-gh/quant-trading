@@ -7,10 +7,12 @@ use serde::{Deserialize, Serialize};
 
 pub mod alpaca;
 pub mod interactive_brokers;
+pub mod oanda;
 pub mod paper;
 
 pub use alpaca::AlpacaBroker;
 pub use interactive_brokers::InteractiveBrokersBroker;
+pub use oanda::OandaBroker;
 pub use paper::PaperBroker;
 
 /// Order types
@@ -127,6 +129,7 @@ pub fn create_broker(broker_name: &str, config: &crate::config::Config) -> Resul
     match broker_name.to_lowercase().as_str() {
         "alpaca" => Ok(Box::new(AlpacaBroker::new(config)?)),
         "interactive_brokers" | "ib" => Ok(Box::new(InteractiveBrokersBroker::new(config)?)),
+        "oanda" => Ok(Box::new(OandaBroker::new(config)?)),
         "paper" => Ok(Box::new(PaperBroker::new(config)?)),
         _ => Err(Error::Config(format!("Unknown broker: {}", broker_name))),
     }

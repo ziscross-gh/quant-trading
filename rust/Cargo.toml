@@ -92,9 +92,9 @@ path = "src/bin/backtest.rs"
 name = "trade"
 path = "src/bin/trade.rs"
 
-[[bench]]
-name = "strategy_bench"
-harness = false
+# [[bench]]
+# name = "strategy_bench"
+# harness = false
 
 [profile.release]
 opt-level = 3
