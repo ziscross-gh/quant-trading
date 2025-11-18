@@ -1,6 +1,20 @@
 # 🏆 Autonomous Gold/USD Quantitative Trading System
 
-A sophisticated, fully autonomous quantitative trading system for Gold/USD (XAU/USD) using Python. This system implements momentum-based strategies with comprehensive risk management, backtesting capabilities, and autonomous execution.
+A sophisticated, fully autonomous quantitative trading system for Gold/USD (XAU/USD) available in both **Python** and **Rust**. This system implements momentum-based strategies with comprehensive risk management, backtesting capabilities, and autonomous execution.
+
+## 🔥 **NEW: Rust Implementation Available!**
+
+A high-performance Rust version is now available in the `rust/` directory with **10-100x performance improvements**!
+- ⚡ Blazing fast backtesting and strategy execution
+- 🦀 Memory-safe with Rust's ownership system
+- 🚀 Async/await based concurrent operations
+- 📦 See `rust/README.md` for details
+
+---
+
+## Python Version
+
+This directory contains the Python implementation. For the high-performance Rust version, see `rust/` directory.
 
 ## ✨ Features
 

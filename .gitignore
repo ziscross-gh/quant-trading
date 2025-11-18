@@ -69,3 +69,13 @@ backtest_results/
 models/*.pkl
 models/*.h5
 models/*.joblib
+
+
+# Rust
+/target
+rust/target/
+Cargo.lock
+rust/Cargo.lock
+*.rs.bk
+rust/results/
+**/*.rs.bk
