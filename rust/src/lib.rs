@@ -20,6 +20,9 @@ pub mod risk_management;
 pub mod indicators;
 pub mod types;
 pub mod error;
+pub mod brokers;
+pub mod database;
+pub mod notifications;
 
 pub use error::{Error, Result};
 pub use types::*;

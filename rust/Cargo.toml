@@ -59,6 +59,26 @@ tokio-cron-scheduler = "0.9"
 # Environment variables
 envy = "0.4"
 
+# Database
+sqlx = { version = "0.7", features = ["runtime-tokio-native-tls", "postgres", "chrono", "uuid"] }
+
+# UUID generation
+uuid = { version = "1.6", features = ["v4", "serde"] }
+
+# Web framework (for dashboard)
+axum = { version = "0.7", features = ["ws"] }
+tower = "0.4"
+tower-http = { version = "0.5", features = ["fs", "trace", "cors"] }
+
+# Telegram bot
+teloxide = { version = "0.12", features = ["macros"] }
+
+# Email
+lettre = "0.11"
+
+# Additional math/stats
+rand = "0.8"
+
 [dev-dependencies]
 criterion = "0.5"
 mockito = "1.2"
