@@ -29,6 +29,12 @@ pub enum Error {
     #[error("Backtesting error: {0}")]
     Backtesting(String),
 
+    #[error("Optimization error: {0}")]
+    OptimizationError(String),
+
+    #[error("Invalid input: {0}")]
+    InvalidInput(String),
+
     #[error("IO error: {0}")]
     Io(#[from] std::io::Error),
 

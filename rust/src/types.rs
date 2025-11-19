@@ -90,6 +90,37 @@ impl MarketData {
     pub fn volumes(&self) -> Vec<f64> {
         self.candles.iter().map(|c| c.volume).collect()
     }
+
+    pub fn timestamps(&self) -> Vec<DateTime<Utc>> {
+        self.candles.iter().map(|c| c.timestamp).collect()
+    }
+
+    /// Filter market data by date range (inclusive)
+    pub fn filter_by_date_range(
+        &self,
+        start: DateTime<Utc>,
+        end: DateTime<Utc>,
+    ) -> crate::Result<Self> {
+        let filtered_candles: Vec<Candle> = self
+            .candles
+            .iter()
+            .filter(|c| c.timestamp >= start && c.timestamp <= end)
+            .cloned()
+            .collect();
+
+        if filtered_candles.is_empty() {
+            return Err(crate::Error::InvalidInput(format!(
+                "No data found in date range {} to {}",
+                start.format("%Y-%m-%d"),
+                end.format("%Y-%m-%d")
+            )));
+        }
+
+        Ok(Self {
+            symbol: self.symbol.clone(),
+            candles: filtered_candles,
+        })
+    }
 }
 
 /// Trading position
