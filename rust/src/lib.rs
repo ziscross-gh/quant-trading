@@ -23,6 +23,7 @@ pub mod error;
 pub mod execution;
 pub mod indicators;
 pub mod learning;
+pub mod ml;
 pub mod news;
 pub mod notifications;
 pub mod optimization;
