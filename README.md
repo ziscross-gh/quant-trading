@@ -1,14 +1,43 @@
 # 🏆 Autonomous Gold/USD Quantitative Trading System
 
-A sophisticated, fully autonomous quantitative trading system for Gold/USD (XAU/USD) available in both **Python** and **Rust**. This system implements momentum-based strategies with comprehensive risk management, backtesting capabilities, and autonomous execution.
+A **production-ready**, fully autonomous quantitative trading system for Gold/USD (XAU/USD) with **Python** and **Rust** implementations. Features news sentiment analysis, real-time notifications, database logging, and professional broker integrations.
 
-## 🔥 **NEW: Rust Implementation Available!**
+## 🔥 **Latest Updates**
 
-A high-performance Rust version is now available in the `rust/` directory with **10-100x performance improvements**!
-- ⚡ Blazing fast backtesting and strategy execution
-- 🦀 Memory-safe with Rust's ownership system
-- 🚀 Async/await based concurrent operations
-- 📦 See `rust/README.md` for details
+### **v2.0 - Production-Ready Release!**
+- ✅ **OANDA Broker Integration** - Professional forex trading with demo & live modes
+- ✅ **News Sentiment Analysis** - Yahoo Finance news with Gold-specific AI sentiment
+- ✅ **Telegram & Email Alerts** - Real-time notifications for all trading events
+- ✅ **PostgreSQL Logging** - Complete trade history and performance analytics
+- ✅ **Health Monitoring** - Auto-recovery and system health checks
+- ✅ **Rust Performance** - 10-100x faster than Python with async execution
+
+## 🌟 Key Features
+
+### Trading & Execution
+- 🤖 **Fully Autonomous** - Runs 24/7 with no manual intervention
+- 📈 **Multi-Indicator Strategy** - MA, RSI, Bollinger Bands + News Sentiment
+- 💱 **OANDA Integration** - Professional REST API v20 broker (demo & live)
+- 🛡️ **Risk Management** - Position sizing, stop-loss, take-profit, drawdown limits
+- 📊 **Backtesting** - Historical validation with slippage and commission
+
+### Intelligence & Analysis
+- 📰 **News Sentiment** - Fetches & analyzes Gold/USD news from Yahoo Finance
+- 🧠 **60+ Keywords** - Financial sentiment lexicon with Gold-specific terms
+- ⚖️ **Signal Blending** - Combines technical indicators with news sentiment
+- 📉 **Real-time Analytics** - Live performance tracking and equity curves
+
+### Notifications & Monitoring
+- 📱 **Telegram Bot** - Instant alerts with emoji status indicators
+- 📧 **HTML Emails** - Beautiful formatted trade notifications
+- 💾 **PostgreSQL** - Persistent storage for trades and equity curve
+- ❤️ **Health Checks** - Automatic error recovery and heartbeat monitoring
+
+### Developer Experience
+- ⚡ **Rust Speed** - 10-100x faster with zero-cost abstractions
+- 🔧 **Easy Setup** - One-command installation script
+- 📖 **Complete Docs** - Step-by-step setup guide
+- 🧪 **Well Tested** - Unit tests and integration tests
 
 ---
 

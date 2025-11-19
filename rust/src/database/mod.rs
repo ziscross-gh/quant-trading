@@ -42,22 +42,183 @@ impl Database {
 
     /// Save trade to database
     pub async fn save_trade(&self, trade: &Trade) -> Result<()> {
-        // TODO: Implement SQL INSERT
-        // sqlx::query!(...)
+        sqlx::query!(
+            r#"
+            INSERT INTO trades (
+                entry_time, exit_time, signal, entry_price, exit_price,
+                size, pnl, pnl_pct, duration_hours, strategy
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+            "#,
+            trade.entry_time,
+            trade.exit_time,
+            format!("{:?}", trade.signal),
+            trade.entry_price,
+            trade.exit_price,
+            trade.size,
+            trade.pnl,
+            trade.pnl_pct,
+            trade.duration_hours,
+            trade.strategy.as_deref()
+        )
+        .execute(&*self.pool)
+        .await
+        .map_err(|e| crate::Error::Execution(format!("Failed to save trade: {}", e)))?;
+
         Ok(())
     }
 
     /// Get trade history
     pub async fn get_trades(&self, limit: i64) -> Result<Vec<Trade>> {
-        // TODO: Implement SQL SELECT
-        Ok(Vec::new())
+        let records = sqlx::query!(
+            r#"
+            SELECT
+                entry_time, exit_time, signal, entry_price, exit_price,
+                size, pnl, pnl_pct, duration_hours, strategy
+            FROM trades
+            ORDER BY entry_time DESC
+            LIMIT $1
+            "#,
+            limit
+        )
+        .fetch_all(&*self.pool)
+        .await
+        .map_err(|e| crate::Error::Execution(format!("Failed to fetch trades: {}", e)))?;
+
+        let trades = records
+            .into_iter()
+            .map(|record| {
+                let signal = match record.signal.as_str() {
+                    "Buy" => crate::Signal::Buy,
+                    "Sell" => crate::Signal::Sell,
+                    _ => crate::Signal::Hold,
+                };
+
+                Trade {
+                    entry_time: record.entry_time,
+                    exit_time: record.exit_time,
+                    signal,
+                    entry_price: record.entry_price.to_string().parse().unwrap_or(0.0),
+                    exit_price: record.exit_price.to_string().parse().unwrap_or(0.0),
+                    size: record.size.to_string().parse().unwrap_or(0.0),
+                    pnl: record.pnl.to_string().parse().unwrap_or(0.0),
+                    pnl_pct: record.pnl_pct.to_string().parse().unwrap_or(0.0),
+                    duration_hours: record.duration_hours.to_string().parse().unwrap_or(0.0),
+                    strategy: record.strategy,
+                }
+            })
+            .collect();
+
+        Ok(trades)
     }
 
     /// Save equity point
     pub async fn save_equity_point(&self, point: &EquityPoint) -> Result<()> {
-        // TODO: Implement
+        sqlx::query!(
+            r#"
+            INSERT INTO equity_curve (timestamp, equity, price)
+            VALUES ($1, $2, $3)
+            "#,
+            point.timestamp,
+            point.equity,
+            point.price
+        )
+        .execute(&*self.pool)
+        .await
+        .map_err(|e| crate::Error::Execution(format!("Failed to save equity point: {}", e)))?;
+
         Ok(())
     }
+
+    /// Get equity curve
+    pub async fn get_equity_curve(&self, limit: i64) -> Result<Vec<EquityPoint>> {
+        let records = sqlx::query!(
+            r#"
+            SELECT timestamp, equity, price
+            FROM equity_curve
+            ORDER BY timestamp DESC
+            LIMIT $1
+            "#,
+            limit
+        )
+        .fetch_all(&*self.pool)
+        .await
+        .map_err(|e| crate::Error::Execution(format!("Failed to fetch equity curve: {}", e)))?;
+
+        let points = records
+            .into_iter()
+            .map(|record| EquityPoint {
+                timestamp: record.timestamp,
+                equity: record.equity.to_string().parse().unwrap_or(0.0),
+                price: record.price.to_string().parse().unwrap_or(0.0),
+            })
+            .collect();
+
+        Ok(points)
+    }
+
+    /// Get performance summary
+    pub async fn get_summary(&self) -> Result<PerformanceSummary> {
+        let record = sqlx::query!(
+            r#"
+            SELECT
+                COUNT(*) as total_trades,
+                SUM(CASE WHEN pnl > 0 THEN 1 ELSE 0 END) as winning_trades,
+                SUM(pnl) as total_pnl,
+                AVG(pnl) as avg_pnl,
+                MAX(pnl) as max_profit,
+                MIN(pnl) as max_loss
+            FROM trades
+            "#
+        )
+        .fetch_one(&*self.pool)
+        .await
+        .map_err(|e| crate::Error::Execution(format!("Failed to fetch summary: {}", e)))?;
+
+        let total_trades = record.total_trades.unwrap_or(0);
+        let winning_trades = record.winning_trades.unwrap_or(0);
+        let win_rate = if total_trades > 0 {
+            (winning_trades as f64 / total_trades as f64) * 100.0
+        } else {
+            0.0
+        };
+
+        Ok(PerformanceSummary {
+            total_trades: total_trades as usize,
+            winning_trades: winning_trades as usize,
+            losing_trades: (total_trades - winning_trades) as usize,
+            win_rate,
+            total_pnl: record
+                .total_pnl
+                .map(|d| d.to_string().parse().unwrap_or(0.0))
+                .unwrap_or(0.0),
+            avg_pnl: record
+                .avg_pnl
+                .map(|d| d.to_string().parse().unwrap_or(0.0))
+                .unwrap_or(0.0),
+            max_profit: record
+                .max_profit
+                .map(|d| d.to_string().parse().unwrap_or(0.0))
+                .unwrap_or(0.0),
+            max_loss: record
+                .max_loss
+                .map(|d| d.to_string().parse().unwrap_or(0.0))
+                .unwrap_or(0.0),
+        })
+    }
+}
+
+/// Performance summary statistics
+#[derive(Debug, Clone)]
+pub struct PerformanceSummary {
+    pub total_trades: usize,
+    pub winning_trades: usize,
+    pub losing_trades: usize,
+    pub win_rate: f64,
+    pub total_pnl: f64,
+    pub avg_pnl: f64,
+    pub max_profit: f64,
+    pub max_loss: f64,
+}
 }
 
 // SQL MIGRATION TEMPLATES (create in rust/migrations/):
