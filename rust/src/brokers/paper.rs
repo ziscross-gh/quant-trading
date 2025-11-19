@@ -28,7 +28,7 @@ impl PaperBroker {
     pub fn new(config: &Config) -> Result<Self> {
         let initial_capital = config.trading.initial_capital;
 
-        info!("Paper broker initialized with ${:,.2}", initial_capital);
+        info!("Paper broker initialized with ${:.2}", initial_capital);
 
         Ok(Self {
             state: Arc::new(Mutex::new(PaperState {

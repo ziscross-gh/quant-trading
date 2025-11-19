@@ -49,7 +49,7 @@ pub struct Candle {
 }
 
 /// Market data time series
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MarketData {
     pub symbol: String,
     pub candles: Vec<Candle>,
@@ -159,6 +159,7 @@ pub struct Trade {
     pub duration_hours: f64,
     pub commission: f64,
     pub slippage: f64,
+    pub strategy: String,
 }
 
 impl Trade {
@@ -168,6 +169,7 @@ impl Trade {
         exit_time: DateTime<Utc>,
         commission: f64,
         slippage: f64,
+        strategy: String,
     ) -> Self {
         let pnl = match position.signal {
             Signal::Buy => (exit_price - position.entry_price) * position.size,
@@ -191,6 +193,7 @@ impl Trade {
             duration_hours,
             commission,
             slippage,
+            strategy,
         }
     }
 

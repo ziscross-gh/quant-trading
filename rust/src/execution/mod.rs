@@ -35,13 +35,13 @@ impl AutonomousTrader {
             config.trading.max_positions,
         );
 
-        info!("="*60);
+        info!("{}", "=".repeat(60));
         info!("AUTONOMOUS GOLD/USD TRADING SYSTEM STARTED");
-        info!("="*60);
+        info!("{}", "=".repeat(60));
         info!("Strategy: {}", strategy.name());
         info!("Mode: {:?}", config.trading.trading_mode);
-        info!("Initial Capital: ${:,.2}", config.trading.initial_capital);
-        info!("="*60);
+        info!("Initial Capital: ${:.2}", config.trading.initial_capital);
+        info!("{}", "=".repeat(60));
 
         Self {
             config,
@@ -211,11 +211,11 @@ impl AutonomousTrader {
         let summary = self.risk_manager.get_risk_summary();
 
         info!("\n--- Current Status ---");
-        info!("Current Capital: ${:,.2}", summary.current_capital);
-        info!("Peak Capital: ${:,.2}", summary.peak_capital);
+        info!("Current Capital: ${:.2}", summary.current_capital);
+        info!("Peak Capital: ${:.2}", summary.peak_capital);
         info!("Drawdown: {:.2}%", summary.drawdown_pct);
         info!(
-            "Daily P&L: ${:,.2} ({:.2}%)",
+            "Daily P&L: ${:.2} ({:.2}%)",
             summary.daily_pnl, summary.daily_pnl_pct
         );
         info!("Open Positions: {}", summary.open_positions);
@@ -254,9 +254,9 @@ impl AutonomousTrader {
         info!("\n{}", "=".repeat(60));
         info!("TRADING SESSION SUMMARY");
         info!("{}", "=".repeat(60));
-        info!("Initial Capital: ${:,.2}", initial);
-        info!("Final Capital: ${:,.2}", summary.current_capital);
-        info!("Total P&L: ${:,.2} ({:.2}%)", total_pnl, total_pnl_pct);
+        info!("Initial Capital: ${:.2}", initial);
+        info!("Final Capital: ${:.2}", summary.current_capital);
+        info!("Total P&L: ${:.2} ({:.2}%)", total_pnl, total_pnl_pct);
         info!("Max Drawdown: {:.2}%", summary.drawdown_pct);
         info!("Total Iterations: {}", self.iteration_count);
         info!("{}", "=".repeat(60));

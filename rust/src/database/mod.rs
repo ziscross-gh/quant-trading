@@ -103,7 +103,9 @@ impl Database {
                     pnl: record.pnl.to_string().parse().unwrap_or(0.0),
                     pnl_pct: record.pnl_pct.to_string().parse().unwrap_or(0.0),
                     duration_hours: record.duration_hours.to_string().parse().unwrap_or(0.0),
-                    strategy: record.strategy,
+                    commission: 0.0,
+                    slippage: 0.0,
+                    strategy: record.strategy.unwrap_or_else(|| "Unknown".to_string()),
                 }
             })
             .collect();
@@ -218,7 +220,6 @@ pub struct PerformanceSummary {
     pub avg_pnl: f64,
     pub max_profit: f64,
     pub max_loss: f64,
-}
 }
 
 // SQL MIGRATION TEMPLATES (create in rust/migrations/):

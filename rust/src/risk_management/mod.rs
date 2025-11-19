@@ -29,7 +29,7 @@ impl RiskManager {
     /// Create a new risk manager
     pub fn new(config: RiskConfig, initial_capital: f64, max_positions: usize) -> Self {
         info!(
-            "RiskManager initialized with capital: ${:,.2}",
+            "RiskManager initialized with capital: ${:.2}",
             initial_capital
         );
         info!(
@@ -243,7 +243,7 @@ impl RiskManager {
         commission: f64,
         slippage: f64,
     ) -> Trade {
-        let trade = Trade::new(position, exit_price, timestamp, commission, slippage);
+        let trade = Trade::new(position, exit_price, timestamp, commission, slippage, "Unknown".to_string());
 
         // Update capital
         self.current_capital += trade.pnl;
@@ -262,7 +262,7 @@ impl RiskManager {
             "Position closed: P&L ${:.2} ({:.2}%)",
             trade.pnl, trade.pnl_pct
         );
-        info!("Current capital: ${:,.2}", self.current_capital);
+        info!("Current capital: ${:.2}", self.current_capital);
 
         trade
     }
@@ -288,7 +288,7 @@ impl RiskManager {
             self.daily_trades.clear();
             self.last_reset_date = now;
             info!(
-                "Daily reset: Starting capital ${:,.2}",
+                "Daily reset: Starting capital ${:.2}",
                 self.current_capital
             );
         }

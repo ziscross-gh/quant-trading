@@ -5,14 +5,20 @@ use async_trait::async_trait;
 use chrono::Utc;
 
 pub mod breakout;
+pub mod ensemble;
 pub mod gold_momentum;
 pub mod mean_reversion;
+pub mod multi_timeframe;
 pub mod news_enhanced;
+pub mod volatility_breakout;
 
 pub use breakout::BreakoutStrategy;
+pub use ensemble::EnsembleStrategy;
 pub use gold_momentum::GoldMomentumStrategy;
 pub use mean_reversion::MeanReversionStrategy;
+pub use multi_timeframe::MultiTimeframeStrategy;
 pub use news_enhanced::NewsEnhancedStrategy;
+pub use volatility_breakout::VolatilityBreakoutStrategy;
 
 /// Base trait for trading strategies
 #[async_trait]
@@ -29,7 +35,7 @@ pub trait Strategy: Send + Sync {
     /// Run complete strategy pipeline
     fn run(&self, data: &MarketData) -> Result<SignalResult> {
         let indicators = self.calculate_indicators(data)?;
-        let signal = self.generate_signal(data, indicators)?;
+        let signal = self.generate_signal(data, &indicators)?;
 
         let last_candle = data.last()
             .ok_or_else(|| Error::InvalidData("No data available".to_string()))?;

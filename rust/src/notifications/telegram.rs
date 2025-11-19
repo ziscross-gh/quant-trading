@@ -37,18 +37,16 @@ impl TelegramNotifier {
     fn format_message(&self, notification: &Notification) -> String {
         let emoji = match notification.level {
             NotificationLevel::Info => "ℹ️",
-            NotificationLevel::Success => "✅",
             NotificationLevel::Warning => "⚠️",
             NotificationLevel::Error => "🔴",
             NotificationLevel::Critical => "🚨",
         };
 
         format!(
-            "{} *{}*\n\n{}\n\n_{}_ • {}",
+            "{} *{}*\n\n{}\n\n{}",
             emoji,
             notification.title,
             notification.message,
-            notification.category,
             notification.timestamp.format("%Y-%m-%d %H:%M:%S UTC")
         )
     }

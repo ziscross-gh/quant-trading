@@ -215,9 +215,9 @@ impl PerformanceMetrics {
 
         println!("\n--- Basic Metrics ---");
         println!("Total Trades: {}", self.total_trades);
-        println!("Initial Capital: ${:,.2}", self.initial_capital);
-        println!("Final Capital: ${:,.2}", self.final_capital);
-        println!("Net Profit: ${:,.2}", self.net_profit);
+        println!("Initial Capital: ${:.2}", self.initial_capital);
+        println!("Final Capital: ${:.2}", self.final_capital);
+        println!("Net Profit: ${:.2}", self.net_profit);
         println!("Total Return: {:.2}%", self.total_return_pct);
 
         println!("\n--- Return Metrics ---");
@@ -234,10 +234,10 @@ impl PerformanceMetrics {
         println!("Win Rate: {:.2}%", self.win_rate_pct);
         println!("Winning Trades: {}", self.num_winning_trades);
         println!("Losing Trades: {}", self.num_losing_trades);
-        println!("Avg Win: ${:,.2}", self.avg_win);
-        println!("Avg Loss: ${:,.2}", self.avg_loss);
-        println!("Largest Win: ${:,.2}", self.largest_win);
-        println!("Largest Loss: ${:,.2}", self.largest_loss);
+        println!("Avg Win: ${:.2}", self.avg_win);
+        println!("Avg Loss: ${:.2}", self.avg_loss);
+        println!("Largest Win: ${:.2}", self.largest_win);
+        println!("Largest Loss: ${:.2}", self.largest_loss);
         println!("Profit Factor: {:.2}", self.profit_factor);
 
         println!("\n--- Additional Metrics ---");

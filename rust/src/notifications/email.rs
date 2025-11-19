@@ -44,7 +44,6 @@ impl EmailNotifier {
     fn format_html(&self, notification: &Notification) -> String {
         let color = match notification.level {
             NotificationLevel::Info => "#17a2b8",
-            NotificationLevel::Success => "#28a745",
             NotificationLevel::Warning => "#ffc107",
             NotificationLevel::Error => "#dc3545",
             NotificationLevel::Critical => "#721c24",
@@ -72,7 +71,7 @@ impl EmailNotifier {
             <p>{}</p>
         </div>
         <div class="footer">
-            <p>{} • {}</p>
+            <p>{}</p>
         </div>
     </div>
 </body>
@@ -81,7 +80,6 @@ impl EmailNotifier {
             color,
             notification.title,
             notification.message.replace('\n', "<br>"),
-            notification.category,
             notification.timestamp.format("%Y-%m-%d %H:%M:%S UTC")
         )
     }

@@ -49,9 +49,9 @@ impl BreakoutStrategy {
         let mut true_ranges = Vec::new();
 
         for i in 1..data.len() {
-            let high = data[i].high;
-            let low = data[i].low;
-            let prev_close = data[i - 1].close;
+            let high = data.candles[i].high;
+            let low = data.candles[i].low;
+            let prev_close = data.candles[i - 1].close;
 
             let tr = (high - low)
                 .max((high - prev_close).abs())
@@ -76,7 +76,7 @@ impl BreakoutStrategy {
     /// Find resistance level (recent high)
     fn find_resistance(&self, data: &MarketData) -> f64 {
         let start_idx = data.len().saturating_sub(self.lookback_period);
-        data[start_idx..]
+        data.candles[start_idx..]
             .iter()
             .map(|c| c.high)
             .fold(0.0, f64::max)
@@ -85,7 +85,7 @@ impl BreakoutStrategy {
     /// Find support level (recent low)
     fn find_support(&self, data: &MarketData) -> f64 {
         let start_idx = data.len().saturating_sub(self.lookback_period);
-        data[start_idx..]
+        data.candles[start_idx..]
             .iter()
             .map(|c| c.low)
             .fold(f64::INFINITY, f64::min)
@@ -99,8 +99,8 @@ impl Strategy for BreakoutStrategy {
     }
 
     fn calculate_indicators(&self, data: &MarketData) -> Result<IndicatorData> {
-        let closes: Vec<f64> = data.iter().map(|c| c.close).collect();
-        let volumes: Vec<f64> = data.iter().map(|c| c.volume).collect();
+        let closes: Vec<f64> = data.candles.iter().map(|c| c.close).collect();
+        let volumes: Vec<f64> = data.candles.iter().map(|c| c.volume).collect();
 
         if closes.len() < self.lookback_period {
             return Err(Error::InvalidData(format!(

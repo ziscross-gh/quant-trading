@@ -95,6 +95,10 @@ path = "src/bin/backtest.rs"
 name = "trade"
 path = "src/bin/trade.rs"
 
+[[bin]]
+name = "compare_strategies"
+path = "src/bin/compare_strategies.rs"
+
 # [[bench]]
 # name = "strategy_bench"
 # harness = false

@@ -124,8 +124,8 @@ impl BacktestEngine {
                 commission,
                 slippage,
             );
-            all_trades.push(trade);
             info!("Position closed at end of backtest: ${:.2}", trade.pnl);
+            all_trades.push(trade);
         }
 
         // Calculate performance metrics
@@ -136,7 +136,7 @@ impl BacktestEngine {
         );
 
         info!("Backtest completed. Total trades: {}", all_trades.len());
-        info!("Final capital: ${:,.2}", risk_manager.capital());
+        info!("Final capital: ${:.2}", risk_manager.capital());
 
         Ok(BacktestResults {
             trades: all_trades,

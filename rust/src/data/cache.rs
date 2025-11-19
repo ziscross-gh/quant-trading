@@ -101,7 +101,7 @@ impl DataCache {
 
             if let Some(filename) = path.file_name().and_then(|n| n.to_str()) {
                 if filename.starts_with(&pattern) {
-                    fs::remove_file(path)?;
+                    fs::remove_file(&path)?;
                     info!("Cleared cache file: {}", filename);
                 }
             }

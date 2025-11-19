@@ -52,7 +52,7 @@ impl Strategy for MeanReversionStrategy {
     }
 
     fn calculate_indicators(&self, data: &MarketData) -> Result<IndicatorData> {
-        let closes: Vec<f64> = data.iter().map(|c| c.close).collect();
+        let closes: Vec<f64> = data.candles.iter().map(|c| c.close).collect();
 
         if closes.len() < self.bb_period.max(self.rsi_period) {
             return Err(Error::InvalidData(format!(
@@ -62,7 +62,10 @@ impl Strategy for MeanReversionStrategy {
         }
 
         // Calculate Bollinger Bands
-        let (bb_upper, bb_middle, bb_lower) = bollinger_bands(&closes, self.bb_period, self.bb_std)?;
+        let bb = bollinger_bands(&closes, self.bb_period, self.bb_std)?;
+        let bb_upper = bb.upper;
+        let bb_middle = bb.middle;
+        let bb_lower = bb.lower;
 
         // Calculate RSI
         let rsi_values = rsi(&closes, self.rsi_period)?;
