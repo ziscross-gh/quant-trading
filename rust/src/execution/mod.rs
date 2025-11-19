@@ -2,13 +2,14 @@
 
 use crate::config::Config;
 use crate::data::DataFetcher;
+use crate::news::{CalendarConfig, EconomicCalendar};
 use crate::risk_management::RiskManager;
 use crate::strategies::Strategy;
-use crate::{Result, Signal, TradingMode};
-use chrono::Utc;
+use crate::{Result, Signal};
+use chrono::{Datelike, Utc};
 use std::sync::Arc;
 use tokio::time::{sleep, Duration};
-use tracing::{error, info, warn};
+use tracing::{info, warn};
 
 /// Autonomous trader that runs continuously
 pub struct AutonomousTrader {
@@ -16,6 +17,7 @@ pub struct AutonomousTrader {
     data_fetcher: Arc<DataFetcher>,
     strategy: Arc<dyn Strategy>,
     risk_manager: RiskManager,
+    economic_calendar: EconomicCalendar,
     is_running: bool,
     iteration_count: u64,
 }
@@ -35,12 +37,26 @@ impl AutonomousTrader {
             config.trading.max_positions,
         );
 
+        // Initialize economic calendar
+        let calendar_config = CalendarConfig::default();
+        let mut economic_calendar = EconomicCalendar::new(calendar_config);
+
+        // Load upcoming events for current and next month
+        let now = Utc::now();
+        economic_calendar.load_typical_events(now.year(), now.month());
+        if now.month() == 12 {
+            economic_calendar.load_typical_events(now.year() + 1, 1);
+        } else {
+            economic_calendar.load_typical_events(now.year(), now.month() + 1);
+        }
+
         info!("{}", "=".repeat(60));
         info!("AUTONOMOUS GOLD/USD TRADING SYSTEM STARTED");
         info!("{}", "=".repeat(60));
         info!("Strategy: {}", strategy.name());
         info!("Mode: {:?}", config.trading.trading_mode);
         info!("Initial Capital: ${:.2}", config.trading.initial_capital);
+        info!("Economic Calendar: {} events loaded", economic_calendar.get_upcoming_events(now, 720).len());
         info!("{}", "=".repeat(60));
 
         Self {
@@ -48,6 +64,7 @@ impl AutonomousTrader {
             data_fetcher,
             strategy,
             risk_manager,
+            economic_calendar,
             is_running: false,
             iteration_count: 0,
         }
@@ -112,6 +129,21 @@ impl AutonomousTrader {
         info!("Iteration #{} - {}", self.iteration_count, now);
         info!("{}", "=".repeat(60));
 
+        // Check for upcoming high-impact economic events
+        let upcoming_events = self.economic_calendar.get_upcoming_events(now, 24);
+        if !upcoming_events.is_empty() {
+            info!("Upcoming economic events in next 24h:");
+            for event in &upcoming_events {
+                let hours_until = event.scheduled_time.signed_duration_since(now).num_hours();
+                info!(
+                    "  - {} in {}h ({:?})",
+                    event.event_type.name(),
+                    hours_until,
+                    event.impact
+                );
+            }
+        }
+
         // Fetch latest data
         info!("Fetching latest market data...");
         let data = self
@@ -127,8 +159,53 @@ impl AutonomousTrader {
         let current_price = data.last().unwrap().close;
         info!("Current Gold price: ${:.2}", current_price);
 
+        // Check if positions should be closed before high-impact events
+        if let Some(event) = self.economic_calendar.should_close_positions(now) {
+            if !self.risk_manager.open_positions.is_empty() {
+                let minutes_until = event.scheduled_time.signed_duration_since(now).num_minutes();
+                warn!(
+                    "🚨 HIGH-IMPACT EVENT ALERT: {} in {} minutes",
+                    event.event_type.name(),
+                    minutes_until
+                );
+                warn!("Closing all positions as precaution...");
+
+                for position in self.risk_manager.open_positions.clone() {
+                    info!("Closing position #{} before event", position.id);
+                    self.risk_manager.close_position(
+                        &position,
+                        current_price,
+                        now,
+                        0.0,
+                        0.0,
+                    );
+                }
+            }
+        }
+
         // Update existing positions (with ATR for dynamic trailing stops)
         self.update_positions(&data, current_price).await;
+
+        // Check if trading should be restricted due to economic events
+        let trading_allowed = if let Some(event) = self.economic_calendar.should_restrict_trading(now) {
+            let time_until = event.scheduled_time.signed_duration_since(now);
+            if time_until.num_minutes() > 0 {
+                warn!(
+                    "⚠️  Trading restricted: {} event in {} minutes",
+                    event.event_type.name(),
+                    time_until.num_minutes()
+                );
+            } else {
+                warn!(
+                    "⚠️  Trading restricted: {} event ended {} minutes ago",
+                    event.event_type.name(),
+                    -time_until.num_minutes()
+                );
+            }
+            false
+        } else {
+            true
+        };
 
         // Generate trading signal
         info!("Evaluating strategy...");
@@ -137,14 +214,23 @@ impl AutonomousTrader {
         info!("Signal: {}", result.signal.description());
 
         // Execute trade if signal and allowed
-        if result.signal != Signal::Hold && self.risk_manager.can_trade(result.signal) {
+        if result.signal != Signal::Hold && trading_allowed && self.risk_manager.can_trade(result.signal) {
             self.execute_trade(result.signal, current_price).await?;
         } else if result.signal != Signal::Hold {
-            warn!("Trading signal generated but trading not allowed (risk limits)");
+            if !trading_allowed {
+                warn!("Trading signal generated but trading restricted (economic event window)");
+            } else {
+                warn!("Trading signal generated but trading not allowed (risk limits)");
+            }
         }
 
         // Print status
         self.print_status(current_price);
+
+        // Clean up old events periodically
+        if self.iteration_count % 100 == 0 {
+            self.economic_calendar.clean_old_events(now);
+        }
 
         Ok(())
     }

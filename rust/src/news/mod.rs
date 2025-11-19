@@ -10,9 +10,11 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use tracing::{debug, info, warn};
 
+pub mod calendar;
 pub mod sentiment;
 pub mod yahoo_finance;
 
+pub use calendar::{CalendarConfig, EconomicCalendar, EconomicEvent, EventImpact, EventType};
 pub use sentiment::{SentimentAnalyzer, SentimentScore};
 pub use yahoo_finance::YahooNewsProvider;
 
