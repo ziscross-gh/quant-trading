@@ -55,6 +55,15 @@ impl BacktestEngine {
 
         let lookback = self.config.strategy.slow_ma.max(self.config.strategy.rsi_period);
 
+        // Calculate ATR for trailing stops
+        let atr_period = 14;
+        let atr_values = crate::indicators::atr(
+            &data.highs(),
+            &data.lows(),
+            &data.closes(),
+            atr_period,
+        )?;
+
         for i in lookback..data.len() {
             // Create slice of data up to current point
             let current_data = MarketData {
@@ -66,8 +75,15 @@ impl BacktestEngine {
             let current_price = current_candle.close;
             let current_time = current_candle.timestamp;
 
-            // Update existing positions
-            let positions_to_close = risk_manager.update_positions(current_price, current_time);
+            // Get current ATR value (if available)
+            let current_atr = if i < atr_values.len() && !atr_values[i].is_nan() {
+                Some(atr_values[i])
+            } else {
+                None
+            };
+
+            // Update existing positions with ATR for dynamic trailing stops
+            let positions_to_close = risk_manager.update_positions(current_price, current_time, current_atr);
 
             // Close triggered positions
             for position in positions_to_close {

@@ -7,8 +7,10 @@ use std::collections::HashMap;
 use tracing::{info, warn};
 
 pub mod position_sizer;
+pub mod trailing_stop;
 
 pub use position_sizer::PositionSizer;
+pub use trailing_stop::{TrailingStopConfig, TrailingStopManager};
 
 /// Risk manager for controlling trading risk
 pub struct RiskManager {
@@ -23,6 +25,7 @@ pub struct RiskManager {
     daily_trades: Vec<Trade>,
     last_reset_date: DateTime<Utc>,
     next_position_id: u64,
+    trailing_stop_manager: TrailingStopManager,
 }
 
 impl RiskManager {
@@ -37,6 +40,15 @@ impl RiskManager {
             config.max_drawdown_pct, config.stop_loss_pct, config.risk_per_trade_pct
         );
 
+        // Create trailing stop manager with default config
+        let trailing_config = TrailingStopConfig::default();
+        let trailing_stop_manager = TrailingStopManager::new(trailing_config);
+
+        info!(
+            "ATR-based trailing stops enabled: activate at {}% profit",
+            trailing_stop_manager.config.activation_threshold_pct
+        );
+
         Self {
             config,
             initial_capital,
@@ -49,6 +61,7 @@ impl RiskManager {
             daily_trades: Vec::new(),
             last_reset_date: Utc::now(),
             next_position_id: 1,
+            trailing_stop_manager,
         }
     }
 
@@ -157,38 +170,68 @@ impl RiskManager {
     }
 
     /// Update positions and check for exit triggers
+    ///
+    /// # Arguments
+    /// * `current_price` - Current market price
+    /// * `timestamp` - Current timestamp
+    /// * `current_atr` - Optional ATR value for dynamic trailing stops
     pub fn update_positions(
         &mut self,
         current_price: f64,
         timestamp: DateTime<Utc>,
+        current_atr: Option<f64>,
     ) -> Vec<Position> {
         let mut positions_to_close = Vec::new();
 
+        let trailing_stop_pct = self.config.trailing_stop_pct;
+
         for position in &mut self.open_positions {
-            // Update trailing stop
+            // Update trailing stop using ATR-based manager if ATR is available
+            if let Some(atr) = current_atr {
+                let stop_adjusted = self.trailing_stop_manager.update_position_trailing_stop(
+                    position,
+                    current_price,
+                    atr,
+                );
+
+                if stop_adjusted {
+                    let status = self.trailing_stop_manager.get_status_description(position, current_price);
+                    info!("Position #{} trailing stop updated: {}", position.id, status);
+                }
+
+                // Check if trailing stop was hit
+                if self.trailing_stop_manager.is_trailing_stop_hit(position, current_price) {
+                    info!(
+                        "Trailing stop triggered at ${:.2} (stop: ${:.2})",
+                        current_price,
+                        position.trailing_stop.unwrap()
+                    );
+                    positions_to_close.push(position.clone());
+                    continue;
+                }
+            } else {
+                // Fallback to percentage-based trailing stop
+                Self::update_percentage_trailing_stop_static(position, current_price, trailing_stop_pct);
+
+                // Check if trailing stop was hit
+                if let Some(trailing_stop) = position.trailing_stop {
+                    let hit = match position.signal {
+                        Signal::Buy => current_price <= trailing_stop,
+                        Signal::Sell => current_price >= trailing_stop,
+                        Signal::Hold => false,
+                    };
+
+                    if hit {
+                        info!("Trailing stop triggered at ${:.2}", current_price);
+                        positions_to_close.push(position.clone());
+                        continue;
+                    }
+                }
+            }
+
+            // Check fixed stop loss and take profit
             match position.signal {
                 Signal::Buy => {
-                    if current_price > position.peak_price {
-                        position.peak_price = current_price;
-                        let trailing_stop =
-                            current_price * (1.0 - self.config.trailing_stop_pct / 100.0);
-
-                        if position.trailing_stop.is_none()
-                            || trailing_stop > position.trailing_stop.unwrap()
-                        {
-                            position.trailing_stop = Some(trailing_stop);
-                        }
-                    }
-
-                    // Check exit conditions
-                    if let Some(trailing_stop) = position.trailing_stop {
-                        if current_price <= trailing_stop {
-                            info!("Trailing stop triggered at ${:.2}", current_price);
-                            positions_to_close.push(position.clone());
-                            continue;
-                        }
-                    }
-
                     if current_price <= position.stop_loss {
                         info!("Stop loss triggered at ${:.2}", current_price);
                         positions_to_close.push(position.clone());
@@ -198,27 +241,6 @@ impl RiskManager {
                     }
                 }
                 Signal::Sell => {
-                    if current_price < position.peak_price {
-                        position.peak_price = current_price;
-                        let trailing_stop =
-                            current_price * (1.0 + self.config.trailing_stop_pct / 100.0);
-
-                        if position.trailing_stop.is_none()
-                            || trailing_stop < position.trailing_stop.unwrap()
-                        {
-                            position.trailing_stop = Some(trailing_stop);
-                        }
-                    }
-
-                    // Check exit conditions
-                    if let Some(trailing_stop) = position.trailing_stop {
-                        if current_price >= trailing_stop {
-                            info!("Trailing stop triggered at ${:.2}", current_price);
-                            positions_to_close.push(position.clone());
-                            continue;
-                        }
-                    }
-
                     if current_price >= position.stop_loss {
                         info!("Stop loss triggered at ${:.2}", current_price);
                         positions_to_close.push(position.clone());
@@ -232,6 +254,39 @@ impl RiskManager {
         }
 
         positions_to_close
+    }
+
+    /// Fallback: Update trailing stop using percentage-based approach
+    fn update_percentage_trailing_stop_static(position: &mut Position, current_price: f64, trailing_stop_pct: f64) {
+        match position.signal {
+            Signal::Buy => {
+                if current_price > position.peak_price {
+                    position.peak_price = current_price;
+                    let trailing_stop =
+                        current_price * (1.0 - trailing_stop_pct / 100.0);
+
+                    if position.trailing_stop.is_none()
+                        || trailing_stop > position.trailing_stop.unwrap()
+                    {
+                        position.trailing_stop = Some(trailing_stop);
+                    }
+                }
+            }
+            Signal::Sell => {
+                if current_price < position.peak_price {
+                    position.peak_price = current_price;
+                    let trailing_stop =
+                        current_price * (1.0 + trailing_stop_pct / 100.0);
+
+                    if position.trailing_stop.is_none()
+                        || trailing_stop < position.trailing_stop.unwrap()
+                    {
+                        position.trailing_stop = Some(trailing_stop);
+                    }
+                }
+            }
+            Signal::Hold => {}
+        }
     }
 
     /// Close a position

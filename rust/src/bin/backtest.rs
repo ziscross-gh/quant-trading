@@ -15,9 +15,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .with_max_level(Level::INFO)
         .init();
 
-    println!("="*60);
+    println!("{}", "=".repeat(60));
     println!("GOLD/USD TRADING STRATEGY BACKTEST");
-    println!("="*60);
+    println!("{}", "=".repeat(60));
 
     // Load configuration
     println!("Loading configuration...");

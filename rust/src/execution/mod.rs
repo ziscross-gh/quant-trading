@@ -127,8 +127,8 @@ impl AutonomousTrader {
         let current_price = data.last().unwrap().close;
         info!("Current Gold price: ${:.2}", current_price);
 
-        // Update existing positions
-        self.update_positions(current_price).await;
+        // Update existing positions (with ATR for dynamic trailing stops)
+        self.update_positions(&data, current_price).await;
 
         // Generate trading signal
         info!("Evaluating strategy...");
@@ -150,7 +150,7 @@ impl AutonomousTrader {
     }
 
     /// Update existing positions
-    async fn update_positions(&mut self, current_price: f64) {
+    async fn update_positions(&mut self, data: &crate::MarketData, current_price: f64) {
         if self.risk_manager.open_positions.is_empty() {
             return;
         }
@@ -160,9 +160,35 @@ impl AutonomousTrader {
             self.risk_manager.open_positions.len()
         );
 
+        // Calculate ATR for dynamic trailing stops
+        let atr_period = 14;
+        let current_atr = if data.len() >= atr_period + 1 {
+            match crate::indicators::atr(
+                &data.highs(),
+                &data.lows(),
+                &data.closes(),
+                atr_period,
+            ) {
+                Ok(atr_values) => {
+                    if let Some(atr) = atr_values.last() {
+                        if !atr.is_nan() {
+                            Some(*atr)
+                        } else {
+                            None
+                        }
+                    } else {
+                        None
+                    }
+                }
+                Err(_) => None,
+            }
+        } else {
+            None
+        };
+
         let positions_to_close = self
             .risk_manager
-            .update_positions(current_price, Utc::now());
+            .update_positions(current_price, Utc::now(), current_atr);
 
         for position in positions_to_close {
             info!("Closing position due to trigger: {}", position.id);

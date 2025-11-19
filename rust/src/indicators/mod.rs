@@ -178,6 +178,55 @@ pub fn momentum(prices: &[f64], period: usize) -> Vec<f64> {
     momentum
 }
 
+/// Calculate Average True Range (ATR)
+///
+/// ATR measures market volatility. It's the average of true ranges over a period.
+/// True Range is the greatest of:
+/// - Current High - Current Low
+/// - abs(Current High - Previous Close)
+/// - abs(Current Low - Previous Close)
+pub fn atr(highs: &[f64], lows: &[f64], closes: &[f64], period: usize) -> Result<Vec<f64>> {
+    if highs.len() != lows.len() || highs.len() != closes.len() {
+        return Err(Error::Config(
+            "High, Low, and Close arrays must have the same length".to_string()
+        ));
+    }
+
+    if highs.len() < period + 1 {
+        return Err(Error::InsufficientData {
+            needed: period + 1,
+            actual: highs.len(),
+        });
+    }
+
+    let mut atr_values = vec![f64::NAN; period];
+    let mut true_ranges = Vec::new();
+
+    // Calculate true ranges
+    for i in 1..highs.len() {
+        let high_low = highs[i] - lows[i];
+        let high_close = (highs[i] - closes[i - 1]).abs();
+        let low_close = (lows[i] - closes[i - 1]).abs();
+
+        let tr = high_low.max(high_close).max(low_close);
+        true_ranges.push(tr);
+    }
+
+    // Calculate first ATR as simple average
+    let first_atr: f64 = true_ranges[..period].iter().sum::<f64>() / period as f64;
+    atr_values.push(first_atr);
+
+    // Calculate subsequent ATR values using smoothed average (Wilder's smoothing)
+    let mut prev_atr = first_atr;
+    for i in period..true_ranges.len() {
+        let atr = (prev_atr * (period as f64 - 1.0) + true_ranges[i]) / period as f64;
+        atr_values.push(atr);
+        prev_atr = atr;
+    }
+
+    Ok(atr_values)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
