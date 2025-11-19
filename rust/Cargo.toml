@@ -104,6 +104,10 @@ path = "src/bin/compare_strategies.rs"
 name = "dashboard"
 path = "src/bin/dashboard.rs"
 
+[[bin]]
+name = "monthly_review"
+path = "src/bin/monthly_review.rs"
+
 # [[bench]]
 # name = "strategy_bench"
 # harness = false

@@ -22,6 +22,7 @@ pub mod data;
 pub mod error;
 pub mod execution;
 pub mod indicators;
+pub mod learning;
 pub mod news;
 pub mod notifications;
 pub mod risk_management;
