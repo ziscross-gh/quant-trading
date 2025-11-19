@@ -1,0 +1,881 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gold/USD Trading Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: #0f1419;
+            color: #e6edf3;
+            padding: 20px;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            padding: 20px;
+            background: #161b22;
+            border-radius: 8px;
+            border: 1px solid #30363d;
+        }
+
+        h1 {
+            color: #f0b429;
+            font-size: 28px;
+            font-weight: 600;
+        }
+
+        .connection-status {
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .connected {
+            background: #238636;
+            color: #fff;
+        }
+
+        .disconnected {
+            background: #da3633;
+            color: #fff;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .card {
+            background: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 8px;
+            padding: 20px;
+        }
+
+        .card-title {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 15px;
+            color: #8b949e;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .metric {
+            margin-bottom: 15px;
+        }
+
+        .metric-label {
+            font-size: 12px;
+            color: #8b949e;
+            margin-bottom: 4px;
+        }
+
+        .metric-value {
+            font-size: 24px;
+            font-weight: 600;
+            color: #e6edf3;
+        }
+
+        .metric-value.positive {
+            color: #3fb950;
+        }
+
+        .metric-value.negative {
+            color: #f85149;
+        }
+
+        .metric-change {
+            font-size: 14px;
+            margin-left: 8px;
+        }
+
+        .chart-container {
+            position: relative;
+            height: 300px;
+            margin-bottom: 20px;
+        }
+
+        .table-container {
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        thead {
+            background: #21262d;
+        }
+
+        th {
+            padding: 12px;
+            text-align: left;
+            font-size: 12px;
+            font-weight: 600;
+            color: #8b949e;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        td {
+            padding: 12px;
+            border-top: 1px solid #30363d;
+            font-size: 14px;
+        }
+
+        tbody tr:hover {
+            background: #21262d;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .badge.buy {
+            background: #238636;
+            color: #fff;
+        }
+
+        .badge.sell {
+            background: #da3633;
+            color: #fff;
+        }
+
+        .badge.hold {
+            background: #6e7681;
+            color: #fff;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: #21262d;
+            border-radius: 4px;
+            overflow: hidden;
+            margin-top: 8px;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #3fb950, #238636);
+            transition: width 0.3s ease;
+        }
+
+        .progress-fill.warning {
+            background: linear-gradient(90deg, #d29922, #f0b429);
+        }
+
+        .progress-fill.danger {
+            background: linear-gradient(90deg, #f85149, #da3633);
+        }
+
+        .news-item {
+            padding: 12px;
+            margin-bottom: 10px;
+            background: #0d1117;
+            border-left: 3px solid #30363d;
+            border-radius: 4px;
+        }
+
+        .news-item.positive {
+            border-left-color: #3fb950;
+        }
+
+        .news-item.negative {
+            border-left-color: #f85149;
+        }
+
+        .news-headline {
+            font-weight: 500;
+            margin-bottom: 4px;
+        }
+
+        .news-meta {
+            font-size: 12px;
+            color: #8b949e;
+        }
+
+        .health-indicator {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .health-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        .health-dot.healthy {
+            background: #3fb950;
+        }
+
+        .health-dot.warning {
+            background: #f0b429;
+        }
+
+        .health-dot.error {
+            background: #f85149;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #8b949e;
+        }
+
+        @media (max-width: 768px) {
+            .grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>⚡ Gold/USD Trading Dashboard</h1>
+        <div class="connection-status disconnected" id="connection-status">
+            ● Connecting...
+        </div>
+    </div>
+
+    <!-- Overview Metrics -->
+    <div class="grid">
+        <div class="card">
+            <div class="card-title">Current Equity</div>
+            <div class="metric">
+                <div class="metric-value" id="current-equity">$0.00</div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-title">Total P&L</div>
+            <div class="metric">
+                <div class="metric-value" id="total-pnl">$0.00</div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-title">Today's P&L</div>
+            <div class="metric">
+                <div class="metric-value" id="daily-pnl">$0.00</div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-title">Active Positions</div>
+            <div class="metric">
+                <div class="metric-value" id="active-positions">0</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Equity Curve Chart -->
+    <div class="card">
+        <div class="card-title">Equity Curve</div>
+        <div class="chart-container">
+            <canvas id="equity-chart"></canvas>
+        </div>
+    </div>
+
+    <!-- Strategy Comparison -->
+    <div class="card">
+        <div class="card-title">Strategy Performance Comparison</div>
+        <div class="chart-container">
+            <canvas id="strategy-chart"></canvas>
+        </div>
+    </div>
+
+    <!-- Risk Metrics -->
+    <div class="card">
+        <div class="card-title">Risk Metrics</div>
+        <div class="grid">
+            <div>
+                <div class="metric-label">Current Drawdown</div>
+                <div class="metric-value" id="current-drawdown">0.00%</div>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="drawdown-progress" style="width: 0%"></div>
+                </div>
+            </div>
+            <div>
+                <div class="metric-label">Total Exposure</div>
+                <div class="metric-value" id="total-exposure">$0.00</div>
+            </div>
+            <div>
+                <div class="metric-label">Risk Limit Used</div>
+                <div class="metric-value" id="risk-limit">0.00%</div>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="risk-progress" style="width: 0%"></div>
+                </div>
+            </div>
+            <div>
+                <div class="metric-label">Largest Position</div>
+                <div class="metric-value" id="largest-position">0.00</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Active Positions Table -->
+    <div class="card">
+        <div class="card-title">Active Positions</div>
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Symbol</th>
+                        <th>Type</th>
+                        <th>Entry Price</th>
+                        <th>Current Price</th>
+                        <th>Size</th>
+                        <th>Unrealized P&L</th>
+                        <th>P&L %</th>
+                        <th>Duration</th>
+                    </tr>
+                </thead>
+                <tbody id="positions-table">
+                    <tr>
+                        <td colspan="8" class="loading">No active positions</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Recent Trades Table -->
+    <div class="card">
+        <div class="card-title">Recent Trades</div>
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Exit Time</th>
+                        <th>Type</th>
+                        <th>Entry Price</th>
+                        <th>Exit Price</th>
+                        <th>Size</th>
+                        <th>P&L</th>
+                        <th>P&L %</th>
+                        <th>Duration</th>
+                    </tr>
+                </thead>
+                <tbody id="trades-table">
+                    <tr>
+                        <td colspan="8" class="loading">Loading trades...</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- News Feed -->
+    <div class="card">
+        <div class="card-title">News Sentiment Feed</div>
+        <div id="news-feed">
+            <div class="loading">Loading news...</div>
+        </div>
+    </div>
+
+    <!-- System Health -->
+    <div class="card">
+        <div class="card-title">System Health</div>
+        <div class="grid">
+            <div>
+                <div class="health-indicator">
+                    <div class="health-dot healthy" id="health-dot"></div>
+                    <div>
+                        <div class="metric-label">Status</div>
+                        <div class="metric-value" id="system-status">Healthy</div>
+                    </div>
+                </div>
+            </div>
+            <div>
+                <div class="metric-label">Uptime</div>
+                <div class="metric-value" id="uptime">0h 0m 0s</div>
+            </div>
+            <div>
+                <div class="metric-label">Total Errors</div>
+                <div class="metric-value" id="error-count">0</div>
+            </div>
+            <div>
+                <div class="metric-label">Last Update</div>
+                <div class="metric-value" id="last-update" style="font-size: 14px;">Never</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // WebSocket connection
+        let ws = null;
+        let reconnectInterval = 5000;
+
+        // Chart instances
+        let equityChart = null;
+        let strategyChart = null;
+
+        // Initialize dashboard
+        function init() {
+            connectWebSocket();
+            fetchInitialData();
+            setInterval(fetchOverview, 5000); // Update overview every 5 seconds
+        }
+
+        // WebSocket connection
+        function connectWebSocket() {
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsUrl = `${protocol}//${window.location.host}/ws`;
+
+            ws = new WebSocket(wsUrl);
+
+            ws.onopen = () => {
+                console.log('WebSocket connected');
+                document.getElementById('connection-status').textContent = '● Connected';
+                document.getElementById('connection-status').className = 'connection-status connected';
+            };
+
+            ws.onmessage = (event) => {
+                const update = JSON.parse(event.data);
+                handleRealtimeUpdate(update);
+            };
+
+            ws.onclose = () => {
+                console.log('WebSocket disconnected');
+                document.getElementById('connection-status').textContent = '● Disconnected';
+                document.getElementById('connection-status').className = 'connection-status disconnected';
+                setTimeout(connectWebSocket, reconnectInterval);
+            };
+
+            ws.onerror = (error) => {
+                console.error('WebSocket error:', error);
+            };
+        }
+
+        // Handle real-time updates
+        function handleRealtimeUpdate(update) {
+            switch (update.type) {
+                case 'TradeExecuted':
+                    updateMetrics({ total_pnl: update.total_pnl, current_equity: update.equity });
+                    fetchTrades();
+                    updateEquityChart();
+                    break;
+                case 'PositionUpdate':
+                    fetchPositions();
+                    break;
+                case 'PositionClosed':
+                    fetchPositions();
+                    break;
+                case 'MetricsUpdate':
+                    updateMetrics(update.metrics);
+                    break;
+                case 'NewsUpdate':
+                    addNewsItem(update.headline, update.sentiment, update.timestamp);
+                    break;
+                case 'HealthUpdate':
+                    updateHealth(update);
+                    break;
+            }
+        }
+
+        // Fetch initial data
+        async function fetchInitialData() {
+            await fetchOverview();
+            await fetchEquityCurve();
+            await fetchStrategyComparison();
+            await fetchPositions();
+            await fetchTrades();
+            await fetchNews();
+            await fetchHealth();
+            await fetchRiskMetrics();
+        }
+
+        // Fetch overview metrics
+        async function fetchOverview() {
+            try {
+                const response = await fetch('/api/overview');
+                const data = await response.json();
+
+                document.getElementById('current-equity').textContent = formatCurrency(data.current_equity);
+                document.getElementById('total-pnl').textContent = formatCurrency(data.total_pnl);
+                document.getElementById('total-pnl').className = 'metric-value ' + (data.total_pnl >= 0 ? 'positive' : 'negative');
+                document.getElementById('daily-pnl').textContent = formatCurrency(data.daily_pnl);
+                document.getElementById('daily-pnl').className = 'metric-value ' + (data.daily_pnl >= 0 ? 'positive' : 'negative');
+                document.getElementById('active-positions').textContent = data.active_positions_count;
+            } catch (error) {
+                console.error('Error fetching overview:', error);
+            }
+        }
+
+        // Update metrics from real-time data
+        function updateMetrics(metrics) {
+            if (metrics.total_pnl !== undefined) {
+                document.getElementById('total-pnl').textContent = formatCurrency(metrics.total_pnl);
+                document.getElementById('total-pnl').className = 'metric-value ' + (metrics.total_pnl >= 0 ? 'positive' : 'negative');
+            }
+            if (metrics.current_equity !== undefined) {
+                document.getElementById('current-equity').textContent = formatCurrency(metrics.current_equity);
+            }
+            if (metrics.daily_pnl !== undefined) {
+                document.getElementById('daily-pnl').textContent = formatCurrency(metrics.daily_pnl);
+                document.getElementById('daily-pnl').className = 'metric-value ' + (metrics.daily_pnl >= 0 ? 'positive' : 'negative');
+            }
+        }
+
+        // Fetch and render equity curve
+        async function fetchEquityCurve() {
+            try {
+                const response = await fetch('/api/equity_curve');
+                const data = await response.json();
+
+                const ctx = document.getElementById('equity-chart').getContext('2d');
+
+                if (equityChart) {
+                    equityChart.destroy();
+                }
+
+                equityChart = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: data.map(d => new Date(d.timestamp).toLocaleDateString()),
+                        datasets: [{
+                            label: 'Equity',
+                            data: data.map(d => d.equity),
+                            borderColor: '#f0b429',
+                            backgroundColor: 'rgba(240, 180, 41, 0.1)',
+                            borderWidth: 2,
+                            fill: true,
+                            tension: 0.4,
+                            yAxisID: 'y'
+                        }, {
+                            label: 'Drawdown %',
+                            data: data.map(d => -d.drawdown_pct),
+                            borderColor: '#f85149',
+                            backgroundColor: 'rgba(248, 81, 73, 0.1)',
+                            borderWidth: 2,
+                            fill: true,
+                            tension: 0.4,
+                            yAxisID: 'y1'
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        interaction: {
+                            mode: 'index',
+                            intersect: false,
+                        },
+                        plugins: {
+                            legend: {
+                                labels: { color: '#e6edf3' }
+                            }
+                        },
+                        scales: {
+                            x: {
+                                ticks: { color: '#8b949e' },
+                                grid: { color: '#30363d' }
+                            },
+                            y: {
+                                type: 'linear',
+                                display: true,
+                                position: 'left',
+                                ticks: { color: '#8b949e' },
+                                grid: { color: '#30363d' }
+                            },
+                            y1: {
+                                type: 'linear',
+                                display: true,
+                                position: 'right',
+                                ticks: { color: '#8b949e' },
+                                grid: { drawOnChartArea: false }
+                            }
+                        }
+                    }
+                });
+            } catch (error) {
+                console.error('Error fetching equity curve:', error);
+            }
+        }
+
+        // Update equity chart (called on trade execution)
+        function updateEquityChart() {
+            fetchEquityCurve();
+        }
+
+        // Fetch and render strategy comparison
+        async function fetchStrategyComparison() {
+            try {
+                const response = await fetch('/api/strategies');
+                const data = await response.json();
+
+                if (data.length === 0) return;
+
+                const ctx = document.getElementById('strategy-chart').getContext('2d');
+
+                if (strategyChart) {
+                    strategyChart.destroy();
+                }
+
+                strategyChart = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: data.map(s => s.name),
+                        datasets: [{
+                            label: 'Win Rate %',
+                            data: data.map(s => s.win_rate),
+                            backgroundColor: '#3fb950',
+                            yAxisID: 'y'
+                        }, {
+                            label: 'Sharpe Ratio',
+                            data: data.map(s => s.sharpe_ratio),
+                            backgroundColor: '#f0b429',
+                            yAxisID: 'y1'
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                labels: { color: '#e6edf3' }
+                            }
+                        },
+                        scales: {
+                            x: {
+                                ticks: { color: '#8b949e' },
+                                grid: { color: '#30363d' }
+                            },
+                            y: {
+                                type: 'linear',
+                                display: true,
+                                position: 'left',
+                                ticks: { color: '#8b949e' },
+                                grid: { color: '#30363d' }
+                            },
+                            y1: {
+                                type: 'linear',
+                                display: true,
+                                position: 'right',
+                                ticks: { color: '#8b949e' },
+                                grid: { drawOnChartArea: false }
+                            }
+                        }
+                    }
+                });
+            } catch (error) {
+                console.error('Error fetching strategy comparison:', error);
+            }
+        }
+
+        // Fetch and render active positions
+        async function fetchPositions() {
+            try {
+                const response = await fetch('/api/positions');
+                const data = await response.json();
+
+                const tbody = document.getElementById('positions-table');
+
+                if (data.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="8" class="loading">No active positions</td></tr>';
+                    return;
+                }
+
+                tbody.innerHTML = data.map(p => `
+                    <tr>
+                        <td>${p.symbol}</td>
+                        <td><span class="badge ${p.signal.toLowerCase()}">${p.signal}</span></td>
+                        <td>${p.entry_price.toFixed(2)}</td>
+                        <td>${p.current_price.toFixed(2)}</td>
+                        <td>${p.size.toFixed(3)}</td>
+                        <td class="${p.unrealized_pnl >= 0 ? 'positive' : 'negative'}">${formatCurrency(p.unrealized_pnl)}</td>
+                        <td class="${p.unrealized_pnl_pct >= 0 ? 'positive' : 'negative'}">${p.unrealized_pnl_pct.toFixed(2)}%</td>
+                        <td>${p.duration_hours.toFixed(1)}h</td>
+                    </tr>
+                `).join('');
+            } catch (error) {
+                console.error('Error fetching positions:', error);
+            }
+        }
+
+        // Fetch and render recent trades
+        async function fetchTrades() {
+            try {
+                const response = await fetch('/api/trades');
+                const data = await response.json();
+
+                const tbody = document.getElementById('trades-table');
+
+                if (data.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="8" class="loading">No trades yet</td></tr>';
+                    return;
+                }
+
+                tbody.innerHTML = data.slice(0, 20).map(t => `
+                    <tr>
+                        <td>${new Date(t.exit_time).toLocaleString()}</td>
+                        <td><span class="badge ${t.signal.toLowerCase()}">${t.signal}</span></td>
+                        <td>${t.entry_price.toFixed(2)}</td>
+                        <td>${t.exit_price.toFixed(2)}</td>
+                        <td>${t.size.toFixed(3)}</td>
+                        <td class="${t.pnl >= 0 ? 'positive' : 'negative'}">${formatCurrency(t.pnl)}</td>
+                        <td class="${t.pnl_pct >= 0 ? 'positive' : 'negative'}">${t.pnl_pct.toFixed(2)}%</td>
+                        <td>${t.duration_hours.toFixed(1)}h</td>
+                    </tr>
+                `).join('');
+            } catch (error) {
+                console.error('Error fetching trades:', error);
+            }
+        }
+
+        // Fetch and render news
+        async function fetchNews() {
+            try {
+                const response = await fetch('/api/news');
+                const data = await response.json();
+
+                const feed = document.getElementById('news-feed');
+
+                if (data.length === 0) {
+                    feed.innerHTML = '<div class="loading">No news available</div>';
+                    return;
+                }
+
+                feed.innerHTML = data.map(n => `
+                    <div class="news-item ${n.sentiment > 0.2 ? 'positive' : n.sentiment < -0.2 ? 'negative' : ''}">
+                        <div class="news-headline">${n.headline}</div>
+                        <div class="news-meta">
+                            ${n.source} • ${new Date(n.timestamp).toLocaleString()} •
+                            Sentiment: ${n.sentiment > 0 ? '+' : ''}${n.sentiment.toFixed(2)}
+                        </div>
+                    </div>
+                `).join('');
+            } catch (error) {
+                console.error('Error fetching news:', error);
+            }
+        }
+
+        // Add a new news item (real-time)
+        function addNewsItem(headline, sentiment, timestamp) {
+            const feed = document.getElementById('news-feed');
+            const sentimentClass = sentiment > 0.2 ? 'positive' : sentiment < -0.2 ? 'negative' : '';
+
+            const newsItem = document.createElement('div');
+            newsItem.className = `news-item ${sentimentClass}`;
+            newsItem.innerHTML = `
+                <div class="news-headline">${headline}</div>
+                <div class="news-meta">
+                    Live • ${new Date(timestamp).toLocaleString()} •
+                    Sentiment: ${sentiment > 0 ? '+' : ''}${sentiment.toFixed(2)}
+                </div>
+            `;
+
+            feed.insertBefore(newsItem, feed.firstChild);
+
+            // Keep only last 20 news items
+            while (feed.children.length > 20) {
+                feed.removeChild(feed.lastChild);
+            }
+        }
+
+        // Fetch risk metrics
+        async function fetchRiskMetrics() {
+            try {
+                const response = await fetch('/api/risk_metrics');
+                const data = await response.json();
+
+                document.getElementById('current-drawdown').textContent = data.current_drawdown_pct.toFixed(2) + '%';
+                document.getElementById('total-exposure').textContent = formatCurrency(data.total_exposure);
+                document.getElementById('risk-limit').textContent = data.risk_limit_used_pct.toFixed(2) + '%';
+                document.getElementById('largest-position').textContent = data.largest_position_size.toFixed(3);
+
+                // Update progress bars
+                const drawdownProgress = (data.current_drawdown_pct / data.max_drawdown_pct) * 100;
+                const drawdownEl = document.getElementById('drawdown-progress');
+                drawdownEl.style.width = Math.min(drawdownProgress, 100) + '%';
+                drawdownEl.className = 'progress-fill ' + (drawdownProgress > 80 ? 'danger' : drawdownProgress > 50 ? 'warning' : '');
+
+                const riskEl = document.getElementById('risk-progress');
+                riskEl.style.width = Math.min(data.risk_limit_used_pct, 100) + '%';
+                riskEl.className = 'progress-fill ' + (data.risk_limit_used_pct > 80 ? 'danger' : data.risk_limit_used_pct > 50 ? 'warning' : '');
+            } catch (error) {
+                console.error('Error fetching risk metrics:', error);
+            }
+        }
+
+        // Fetch system health
+        async function fetchHealth() {
+            try {
+                const response = await fetch('/api/health');
+                const data = await response.json();
+
+                updateHealth(data);
+            } catch (error) {
+                console.error('Error fetching health:', error);
+            }
+        }
+
+        // Update health display
+        function updateHealth(data) {
+            document.getElementById('system-status').textContent = data.status;
+            document.getElementById('uptime').textContent = data.uptime_human || formatUptime(data.uptime_seconds);
+            document.getElementById('error-count').textContent = data.total_errors || 0;
+
+            if (data.last_update) {
+                document.getElementById('last-update').textContent = new Date(data.last_update).toLocaleTimeString();
+            }
+
+            const healthDot = document.getElementById('health-dot');
+            healthDot.className = 'health-dot ' + (
+                data.status === 'Healthy' ? 'healthy' :
+                data.status === 'Warning' ? 'warning' : 'error'
+            );
+        }
+
+        // Utility: Format currency
+        function formatCurrency(value) {
+            return new Intl.NumberFormat('en-US', {
+                style: 'currency',
+                currency: 'USD',
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+            }).format(value);
+        }
+
+        // Utility: Format uptime
+        function formatUptime(seconds) {
+            const h = Math.floor(seconds / 3600);
+            const m = Math.floor((seconds % 3600) / 60);
+            const s = seconds % 60;
+            return `${h}h ${m}m ${s}s`;
+        }
+
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>

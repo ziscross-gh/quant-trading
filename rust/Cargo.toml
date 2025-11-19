@@ -13,6 +13,7 @@ categories = ["finance"]
 # Async runtime
 tokio = { version = "1.35", features = ["full"] }
 async-trait = "0.1"
+futures = "0.3"
 
 # Data structures and serialization
 serde = { version = "1.0", features = ["derive"] }
@@ -98,6 +99,10 @@ path = "src/bin/trade.rs"
 [[bin]]
 name = "compare_strategies"
 path = "src/bin/compare_strategies.rs"
+
+[[bin]]
+name = "dashboard"
+path = "src/bin/dashboard.rs"
 
 # [[bench]]
 # name = "strategy_bench"

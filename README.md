@@ -4,7 +4,11 @@ A **production-ready**, fully autonomous quantitative trading system for Gold/US
 
 ## 🔥 **Latest Updates**
 
-### **v2.0 - Production-Ready Release!**
+### **v3.0 - Advanced Strategies & Real-Time Dashboard!**
+- 🆕 **Real-Time Web Dashboard** - Professional monitoring with WebSocket live updates
+- 🆕 **7 Advanced Strategies** - ATR Volatility, Multi-Timeframe, Ensemble, and more
+- 🆕 **Strategy Comparison Tool** - Backtest all strategies side-by-side
+- 🆕 **Interactive Charts** - Equity curve, drawdown, and strategy performance visualization
 - ✅ **OANDA Broker Integration** - Professional forex trading with demo & live modes
 - ✅ **News Sentiment Analysis** - Yahoo Finance news with Gold-specific AI sentiment
 - ✅ **Telegram & Email Alerts** - Real-time notifications for all trading events
@@ -28,6 +32,8 @@ A **production-ready**, fully autonomous quantitative trading system for Gold/US
 - 📉 **Real-time Analytics** - Live performance tracking and equity curves
 
 ### Notifications & Monitoring
+- 📊 **Real-Time Dashboard** - Web UI with live charts and WebSocket updates
+- 📈 **Interactive Visualizations** - Equity curve, drawdown, strategy comparison
 - 📱 **Telegram Bot** - Instant alerts with emoji status indicators
 - 📧 **HTML Emails** - Beautiful formatted trade notifications
 - 💾 **PostgreSQL** - Persistent storage for trades and equity curve

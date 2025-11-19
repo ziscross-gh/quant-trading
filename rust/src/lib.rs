@@ -15,8 +15,10 @@ pub mod analytics;
 pub mod backtesting;
 pub mod brokers;
 pub mod config;
+pub mod dashboard;
 pub mod data;
-pub mod database;
+// Database module requires DATABASE_URL - uncomment when PostgreSQL is set up
+// pub mod database;
 pub mod error;
 pub mod execution;
 pub mod indicators;
