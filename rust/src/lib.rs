@@ -11,19 +11,20 @@
 //! - Paper and live trading modes
 //! - High performance and memory safety
 
+pub mod analytics;
+pub mod backtesting;
+pub mod brokers;
 pub mod config;
 pub mod data;
-pub mod strategies;
-pub mod backtesting;
-pub mod execution;
-pub mod risk_management;
-pub mod indicators;
-pub mod types;
-pub mod error;
-pub mod brokers;
 pub mod database;
-pub mod notifications;
+pub mod error;
+pub mod execution;
+pub mod indicators;
 pub mod news;
+pub mod notifications;
+pub mod risk_management;
+pub mod strategies;
+pub mod types;
 
 pub use error::{Error, Result};
 pub use types::*;

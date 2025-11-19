@@ -1,0 +1,104 @@
+# Docker Compose for Gold/USD Trading Bot
+# Complete stack: Trading Bot + PostgreSQL + Adminer
+
+version: '3.8'
+
+services:
+  # Trading Bot
+  trading-bot:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: gold-trading-bot
+    restart: unless-stopped
+    environment:
+      # Trading Mode
+      - TRADING_MODE=${TRADING_MODE:-paper}
+
+      # OANDA Broker
+      - OANDA_API_TOKEN=${OANDA_API_TOKEN}
+      - OANDA_ACCOUNT_ID=${OANDA_ACCOUNT_ID}
+
+      # Database
+      - DATABASE_URL=postgresql://trader:${POSTGRES_PASSWORD:-tradingpass}@postgres:5432/trading_db
+
+      # Telegram
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+      - TELEGRAM_CHAT_ID=${TELEGRAM_CHAT_ID}
+
+      # Email
+      - SMTP_SERVER=${SMTP_SERVER:-smtp.gmail.com}
+      - SMTP_USERNAME=${SMTP_USERNAME}
+      - SMTP_PASSWORD=${SMTP_PASSWORD}
+      - EMAIL_FROM=${EMAIL_FROM}
+      - EMAIL_TO=${EMAIL_TO}
+
+      # Logging
+      - RUST_LOG=${RUST_LOG:-info}
+
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+    volumes:
+      - ./logs:/app/logs
+      - ./config:/app/config
+
+    networks:
+      - trading-network
+
+    # Resource limits
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 1G
+        reservations:
+          cpus: '0.5'
+          memory: 256M
+
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: trading-db
+    restart: unless-stopped
+    environment:
+      - POSTGRES_DB=trading_db
+      - POSTGRES_USER=trader
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-tradingpass}
+
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./migrations:/docker-entrypoint-initdb.d
+
+    ports:
+      - "5432:5432"
+
+    networks:
+      - trading-network
+
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U trader -d trading_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Adminer - Database Management UI
+  adminer:
+    image: adminer:latest
+    container_name: trading-adminer
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    networks:
+      - trading-network
+    environment:
+      - ADMINER_DEFAULT_SERVER=postgres
+
+volumes:
+  postgres-data:
+    driver: local
+
+networks:
+  trading-network:
+    driver: bridge

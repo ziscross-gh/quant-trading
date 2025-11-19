@@ -4,10 +4,14 @@ use crate::{Error, MarketData, Result, Signal, SignalResult};
 use async_trait::async_trait;
 use chrono::Utc;
 
+pub mod breakout;
 pub mod gold_momentum;
+pub mod mean_reversion;
 pub mod news_enhanced;
 
+pub use breakout::BreakoutStrategy;
 pub use gold_momentum::GoldMomentumStrategy;
+pub use mean_reversion::MeanReversionStrategy;
 pub use news_enhanced::NewsEnhancedStrategy;
 
 /// Base trait for trading strategies
