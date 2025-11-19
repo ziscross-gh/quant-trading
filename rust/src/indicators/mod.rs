@@ -227,6 +227,165 @@ pub fn atr(highs: &[f64], lows: &[f64], closes: &[f64], period: usize) -> Result
     Ok(atr_values)
 }
 
+/// Calculate Average Directional Index (ADX)
+///
+/// ADX measures trend strength on a scale of 0-100.
+/// - ADX < 20: Weak or no trend (ranging market)
+/// - ADX 20-25: Emerging trend
+/// - ADX 25-50: Strong trend
+/// - ADX > 50: Very strong trend
+///
+/// Returns (adx_values, plus_di, minus_di)
+pub fn adx(
+    highs: &[f64],
+    lows: &[f64],
+    closes: &[f64],
+    period: usize,
+) -> Result<(Vec<f64>, Vec<f64>, Vec<f64>)> {
+    if highs.len() != lows.len() || highs.len() != closes.len() {
+        return Err(Error::Config(
+            "High, Low, and Close arrays must have the same length".to_string(),
+        ));
+    }
+
+    if highs.len() < period * 2 {
+        return Err(Error::InsufficientData {
+            needed: period * 2,
+            actual: highs.len(),
+        });
+    }
+
+    let mut plus_dm = Vec::new();
+    let mut minus_dm = Vec::new();
+    let mut tr = Vec::new();
+
+    // Calculate directional movements and true range
+    for i in 1..highs.len() {
+        let high_diff = highs[i] - highs[i - 1];
+        let low_diff = lows[i - 1] - lows[i];
+
+        // +DM
+        let plus_dm_val = if high_diff > low_diff && high_diff > 0.0 {
+            high_diff
+        } else {
+            0.0
+        };
+        plus_dm.push(plus_dm_val);
+
+        // -DM
+        let minus_dm_val = if low_diff > high_diff && low_diff > 0.0 {
+            low_diff
+        } else {
+            0.0
+        };
+        minus_dm.push(minus_dm_val);
+
+        // True Range
+        let high_low = highs[i] - lows[i];
+        let high_close = (highs[i] - closes[i - 1]).abs();
+        let low_close = (lows[i] - closes[i - 1]).abs();
+        tr.push(high_low.max(high_close).max(low_close));
+    }
+
+    // Smooth the values using Wilder's smoothing
+    let mut smoothed_plus_dm = vec![f64::NAN; period - 1];
+    let mut smoothed_minus_dm = vec![f64::NAN; period - 1];
+    let mut smoothed_tr = vec![f64::NAN; period - 1];
+
+    // First smoothed value is sum
+    let first_plus = plus_dm[..period].iter().sum::<f64>();
+    let first_minus = minus_dm[..period].iter().sum::<f64>();
+    let first_tr = tr[..period].iter().sum::<f64>();
+
+    smoothed_plus_dm.push(first_plus);
+    smoothed_minus_dm.push(first_minus);
+    smoothed_tr.push(first_tr);
+
+    let mut prev_plus = first_plus;
+    let mut prev_minus = first_minus;
+    let mut prev_tr = first_tr;
+
+    for i in period..plus_dm.len() {
+        let curr_plus = prev_plus - (prev_plus / period as f64) + plus_dm[i];
+        let curr_minus = prev_minus - (prev_minus / period as f64) + minus_dm[i];
+        let curr_tr = prev_tr - (prev_tr / period as f64) + tr[i];
+
+        smoothed_plus_dm.push(curr_plus);
+        smoothed_minus_dm.push(curr_minus);
+        smoothed_tr.push(curr_tr);
+
+        prev_plus = curr_plus;
+        prev_minus = curr_minus;
+        prev_tr = curr_tr;
+    }
+
+    // Calculate +DI and -DI
+    let mut plus_di = Vec::new();
+    let mut minus_di = Vec::new();
+
+    for i in 0..smoothed_plus_dm.len() {
+        if smoothed_tr[i].is_nan() || smoothed_tr[i] == 0.0 {
+            plus_di.push(f64::NAN);
+            minus_di.push(f64::NAN);
+        } else {
+            plus_di.push((smoothed_plus_dm[i] / smoothed_tr[i]) * 100.0);
+            minus_di.push((smoothed_minus_dm[i] / smoothed_tr[i]) * 100.0);
+        }
+    }
+
+    // Calculate DX (Directional Index)
+    let mut dx = Vec::new();
+    for i in 0..plus_di.len() {
+        if plus_di[i].is_nan() || minus_di[i].is_nan() {
+            dx.push(f64::NAN);
+        } else {
+            let di_sum = plus_di[i] + minus_di[i];
+            if di_sum == 0.0 {
+                dx.push(0.0);
+            } else {
+                let di_diff = (plus_di[i] - minus_di[i]).abs();
+                dx.push((di_diff / di_sum) * 100.0);
+            }
+        }
+    }
+
+    // Calculate ADX (smoothed DX)
+    let mut adx_values = vec![f64::NAN; period - 1];
+
+    // Find first valid DX index
+    let first_valid_idx = dx.iter().position(|&x| !x.is_nan()).unwrap_or(0);
+    let adx_start = first_valid_idx + period - 1;
+
+    if adx_start >= dx.len() {
+        return Ok((adx_values, plus_di, minus_di));
+    }
+
+    // First ADX is average of first period DX values
+    let first_adx: f64 = dx[first_valid_idx..first_valid_idx + period]
+        .iter()
+        .sum::<f64>()
+        / period as f64;
+
+    for _ in 0..adx_start {
+        adx_values.push(f64::NAN);
+    }
+    adx_values.push(first_adx);
+
+    let mut prev_adx = first_adx;
+
+    for i in (adx_start + 1)..dx.len() {
+        if dx[i].is_nan() {
+            adx_values.push(f64::NAN);
+        } else {
+            let curr_adx = (prev_adx * (period as f64 - 1.0) + dx[i]) / period as f64;
+            adx_values.push(curr_adx);
+            prev_adx = curr_adx;
+        }
+    }
+
+    Ok((adx_values, plus_di, minus_di))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

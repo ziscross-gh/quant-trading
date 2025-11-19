@@ -3,6 +3,7 @@
 use crate::config::Config;
 use crate::data::DataFetcher;
 use crate::news::{CalendarConfig, EconomicCalendar};
+use crate::regime::{RegimeConfig, RegimeDetector};
 use crate::risk_management::RiskManager;
 use crate::strategies::Strategy;
 use crate::{Result, Signal};
@@ -18,6 +19,7 @@ pub struct AutonomousTrader {
     strategy: Arc<dyn Strategy>,
     risk_manager: RiskManager,
     economic_calendar: EconomicCalendar,
+    regime_detector: RegimeDetector,
     is_running: bool,
     iteration_count: u64,
 }
@@ -50,6 +52,10 @@ impl AutonomousTrader {
             economic_calendar.load_typical_events(now.year(), now.month() + 1);
         }
 
+        // Initialize regime detector
+        let regime_config = RegimeConfig::default();
+        let regime_detector = RegimeDetector::new(regime_config);
+
         info!("{}", "=".repeat(60));
         info!("AUTONOMOUS GOLD/USD TRADING SYSTEM STARTED");
         info!("{}", "=".repeat(60));
@@ -57,6 +63,7 @@ impl AutonomousTrader {
         info!("Mode: {:?}", config.trading.trading_mode);
         info!("Initial Capital: ${:.2}", config.trading.initial_capital);
         info!("Economic Calendar: {} events loaded", economic_calendar.get_upcoming_events(now, 720).len());
+        info!("Market Regime Detection: ENABLED");
         info!("{}", "=".repeat(60));
 
         Self {
@@ -65,6 +72,7 @@ impl AutonomousTrader {
             strategy,
             risk_manager,
             economic_calendar,
+            regime_detector,
             is_running: false,
             iteration_count: 0,
         }
@@ -159,6 +167,18 @@ impl AutonomousTrader {
         let current_price = data.last().unwrap().close;
         info!("Current Gold price: ${:.2}", current_price);
 
+        // Detect current market regime
+        let regime_analysis = self.regime_detector.analyze_regime(&data)?;
+        info!("Market Regime: {}", regime_analysis.summary());
+
+        // Log recommended strategies for current regime
+        let recommended_strategies = regime_analysis.regime.recommended_strategies();
+        info!("  Recommended strategies: {:?}", recommended_strategies);
+
+        // Get position sizing multiplier based on regime
+        let regime_position_multiplier = regime_analysis.regime.position_size_multiplier();
+        info!("  Position size multiplier: {:.2}x", regime_position_multiplier);
+
         // Check if positions should be closed before high-impact events
         if let Some(event) = self.economic_calendar.should_close_positions(now) {
             if !self.risk_manager.open_positions.is_empty() {
@@ -215,7 +235,7 @@ impl AutonomousTrader {
 
         // Execute trade if signal and allowed
         if result.signal != Signal::Hold && trading_allowed && self.risk_manager.can_trade(result.signal) {
-            self.execute_trade(result.signal, current_price).await?;
+            self.execute_trade(result.signal, current_price, regime_position_multiplier).await?;
         } else if result.signal != Signal::Hold {
             if !trading_allowed {
                 warn!("Trading signal generated but trading restricted (economic event window)");
@@ -288,16 +308,25 @@ impl AutonomousTrader {
         }
     }
 
-    /// Execute a trade
-    async fn execute_trade(&mut self, signal: Signal, current_price: f64) -> Result<()> {
+    /// Execute a trade with regime-adjusted position sizing
+    async fn execute_trade(&mut self, signal: Signal, current_price: f64, regime_multiplier: f64) -> Result<()> {
         info!("Executing {} order...", signal.description());
 
-        let position_size = self.risk_manager.calculate_position_size(signal, current_price);
+        // Calculate base position size
+        let base_position_size = self.risk_manager.calculate_position_size(signal, current_price);
+
+        // Apply regime-based adjustment
+        let position_size = base_position_size * regime_multiplier;
 
         if position_size <= 0.0 {
             warn!("Position size is zero, skipping trade");
             return Ok(());
         }
+
+        info!(
+            "Position sizing: Base {:.4} oz × Regime {:.2}x = {:.4} oz",
+            base_position_size, regime_multiplier, position_size
+        );
 
         let position = self.risk_manager.open_position(
             signal,

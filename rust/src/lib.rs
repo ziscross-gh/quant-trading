@@ -25,6 +25,7 @@ pub mod indicators;
 pub mod learning;
 pub mod news;
 pub mod notifications;
+pub mod regime;
 pub mod risk_management;
 pub mod strategies;
 pub mod types;
