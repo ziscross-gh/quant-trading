@@ -79,3 +79,4 @@ rust/Cargo.lock
 *.rs.bk
 rust/results/
 **/*.rs.bk
+rust/config
