@@ -2,15 +2,16 @@
 
 use crate::config::Config;
 use crate::data::DataFetcher;
+use crate::monitoring::{AlertLevel, MonitoringConfig, MonitoringSystem};
 use crate::news::{CalendarConfig, EconomicCalendar};
 use crate::regime::{RegimeConfig, RegimeDetector};
 use crate::risk_management::RiskManager;
 use crate::strategies::Strategy;
-use crate::{Result, Signal};
+use crate::{Result, Signal, Trade};
 use chrono::{Datelike, Utc};
 use std::sync::Arc;
 use tokio::time::{sleep, Duration};
-use tracing::{info, warn};
+use tracing::{error, info, warn};
 
 /// Autonomous trader that runs continuously
 pub struct AutonomousTrader {
@@ -20,13 +21,50 @@ pub struct AutonomousTrader {
     risk_manager: RiskManager,
     economic_calendar: EconomicCalendar,
     regime_detector: RegimeDetector,
+    monitoring: MonitoringSystem,
     is_running: bool,
     iteration_count: u64,
 }
 
+/// Configuration for production monitoring
+#[derive(Clone)]
+pub struct ProductionConfig {
+    /// Telegram bot token for notifications
+    pub telegram_bot_token: Option<String>,
+    /// Telegram chat ID for notifications
+    pub telegram_chat_id: Option<String>,
+    /// Maximum drawdown percentage before alert (default: 10%)
+    pub max_drawdown_alert_pct: f64,
+    /// Maximum consecutive losses before alert (default: 3)
+    pub max_consecutive_losses: u32,
+    /// Minimum win rate before alert (default: 45%)
+    pub min_win_rate_alert_pct: f64,
+}
+
+impl Default for ProductionConfig {
+    fn default() -> Self {
+        Self {
+            telegram_bot_token: std::env::var("TELEGRAM_BOT_TOKEN").ok(),
+            telegram_chat_id: std::env::var("TELEGRAM_CHAT_ID").ok(),
+            max_drawdown_alert_pct: 10.0,
+            max_consecutive_losses: 3,
+            min_win_rate_alert_pct: 45.0,
+        }
+    }
+}
+
 impl AutonomousTrader {
-    /// Create a new autonomous trader
+    /// Create a new autonomous trader with default monitoring
     pub fn new(config: Config, strategy: Arc<dyn Strategy>) -> Self {
+        Self::with_monitoring(config, strategy, ProductionConfig::default())
+    }
+
+    /// Create a new autonomous trader with custom monitoring configuration
+    pub fn with_monitoring(
+        config: Config,
+        strategy: Arc<dyn Strategy>,
+        production_config: ProductionConfig,
+    ) -> Self {
         let data_fetcher = Arc::new(DataFetcher::new(
             config.trading.symbol.clone(),
             config.data.cache_enabled,
@@ -56,6 +94,18 @@ impl AutonomousTrader {
         let regime_config = RegimeConfig::default();
         let regime_detector = RegimeDetector::new(regime_config);
 
+        // Initialize production monitoring system
+        let monitoring_config = MonitoringConfig {
+            telegram_bot_token: production_config.telegram_bot_token,
+            telegram_chat_id: production_config.telegram_chat_id,
+            max_drawdown_alert_pct: production_config.max_drawdown_alert_pct,
+            max_consecutive_losses: production_config.max_consecutive_losses,
+            min_win_rate_alert_pct: production_config.min_win_rate_alert_pct,
+            alert_cooldown_secs: 300,
+            daily_report_hour: 17, // 5 PM
+        };
+        let monitoring = MonitoringSystem::new(monitoring_config);
+
         info!("{}", "=".repeat(60));
         info!("AUTONOMOUS GOLD/USD TRADING SYSTEM STARTED");
         info!("{}", "=".repeat(60));
@@ -64,6 +114,7 @@ impl AutonomousTrader {
         info!("Initial Capital: ${:.2}", config.trading.initial_capital);
         info!("Economic Calendar: {} events loaded", economic_calendar.get_upcoming_events(now, 720).len());
         info!("Market Regime Detection: ENABLED");
+        info!("Production Monitoring: ENABLED");
         info!("{}", "=".repeat(60));
 
         Self {
@@ -73,6 +124,7 @@ impl AutonomousTrader {
             risk_manager,
             economic_calendar,
             regime_detector,
+            monitoring,
             is_running: false,
             iteration_count: 0,
         }
@@ -82,8 +134,41 @@ impl AutonomousTrader {
     pub async fn start(&mut self) -> Result<()> {
         self.is_running = true;
 
+        // Send startup notification
+        self.monitoring
+            .send_alert(crate::monitoring::Alert::new(
+                AlertLevel::Info,
+                "Trading System Started".to_string(),
+                format!(
+                    "Strategy: {}\nMode: {:?}\nCapital: ${:.2}",
+                    self.strategy.name(),
+                    self.config.trading.trading_mode,
+                    self.config.trading.initial_capital
+                ),
+            ))
+            .await;
+
+        // Update health status - data feed connected
+        self.monitoring.update_health_data_feed(true).await;
+
         while self.is_running {
-            self.trading_loop().await?;
+            match self.trading_loop().await {
+                Ok(_) => {
+                    // Update health status on successful iteration
+                    self.monitoring.update_health_data_feed(true).await;
+                }
+                Err(e) => {
+                    error!("Trading loop error: {}", e);
+                    self.monitoring
+                        .send_alert(crate::monitoring::Alert::new(
+                            AlertLevel::Error,
+                            "Trading Loop Error".to_string(),
+                            format!("Error: {}", e),
+                        ))
+                        .await;
+                    // Continue running despite error
+                }
+            }
 
             // Sleep for check interval
             let interval = Duration::from_secs(self.config.execution.check_interval);
@@ -107,22 +192,51 @@ impl AutonomousTrader {
 
             if let Ok((current_price, _)) = self.data_fetcher.get_current_price().await {
                 for position in self.risk_manager.open_positions.clone() {
-                    let exit_signal = match position.signal {
+                    let _exit_signal = match position.signal {
                         Signal::Buy => Signal::Sell,
                         Signal::Sell => Signal::Buy,
                         Signal::Hold => Signal::Hold,
                     };
 
-                    self.risk_manager.close_position(
+                    let trade = self.risk_manager.close_position(
                         &position,
                         current_price,
                         Utc::now(),
                         0.0,
                         0.0,
                     );
+                    // Record trade with monitoring system
+                    self.monitoring.record_trade(&trade).await;
                 }
             }
         }
+
+        // Get final metrics for shutdown report
+        let metrics = self.monitoring.get_metrics().await;
+        let summary = self.risk_manager.get_risk_summary();
+        let initial = self.config.trading.initial_capital;
+        let total_pnl = summary.current_capital - initial;
+        let total_pnl_pct = (total_pnl / initial) * 100.0;
+
+        // Send shutdown notification with session summary
+        self.monitoring
+            .send_alert(crate::monitoring::Alert::new(
+                AlertLevel::Info,
+                "Trading System Stopped".to_string(),
+                format!(
+                    "Session Summary:\n\
+                     Total Trades: {}\n\
+                     Win Rate: {:.1}%\n\
+                     Total P&L: ${:.2} ({:.2}%)\n\
+                     Max Drawdown: {:.2}%",
+                    metrics.total_trades,
+                    metrics.win_rate_pct,
+                    total_pnl,
+                    total_pnl_pct,
+                    summary.drawdown_pct
+                ),
+            ))
+            .await;
 
         self.print_session_summary();
         info!("Autonomous trader stopped");
@@ -190,15 +304,31 @@ impl AutonomousTrader {
                 );
                 warn!("Closing all positions as precaution...");
 
+                // Send alert about event-based closure
+                self.monitoring
+                    .send_alert(crate::monitoring::Alert::new(
+                        AlertLevel::Warning,
+                        "Positions Closed - Economic Event".to_string(),
+                        format!(
+                            "{} in {} minutes\nClosing {} positions as precaution",
+                            event.event_type.name(),
+                            minutes_until,
+                            self.risk_manager.open_positions.len()
+                        ),
+                    ))
+                    .await;
+
                 for position in self.risk_manager.open_positions.clone() {
                     info!("Closing position #{} before event", position.id);
-                    self.risk_manager.close_position(
+                    let trade = self.risk_manager.close_position(
                         &position,
                         current_price,
                         now,
                         0.0,
                         0.0,
                     );
+                    // Record trade with monitoring system
+                    self.monitoring.record_trade(&trade).await;
                 }
             }
         }
@@ -298,13 +428,15 @@ impl AutonomousTrader {
 
         for position in positions_to_close {
             info!("Closing position due to trigger: {}", position.id);
-            self.risk_manager.close_position(
+            let trade = self.risk_manager.close_position(
                 &position,
                 current_price,
                 Utc::now(),
                 0.0,
                 0.0,
             );
+            // Record trade with monitoring system
+            self.monitoring.record_trade(&trade).await;
         }
     }
 
@@ -343,6 +475,17 @@ impl AutonomousTrader {
             "  Stop Loss: ${:.2}, Take Profit: ${:.2}",
             position.stop_loss, position.take_profit
         );
+
+        // Send trade entry notification via monitoring system
+        self.monitoring
+            .send_trade_entry(
+                signal,
+                current_price,
+                position_size,
+                position.stop_loss,
+                position.take_profit,
+            )
+            .await;
 
         Ok(())
     }

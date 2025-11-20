@@ -396,6 +396,44 @@ impl MonitoringSystem {
         }
     }
 
+    /// Send trade entry notification (convenience wrapper)
+    pub async fn send_trade_entry(
+        &self,
+        signal: Signal,
+        entry_price: f64,
+        size: f64,
+        stop_loss: f64,
+        take_profit: f64,
+    ) {
+        self.record_trade_entry(
+            signal,
+            entry_price,
+            size,
+            Some(stop_loss),
+            Some(take_profit),
+            "Position opened".to_string(),
+        )
+        .await;
+    }
+
+    /// Update health status for data feed connection
+    pub async fn update_health_data_feed(&self, connected: bool) {
+        let mut health = self.health.write().await;
+        health.data_feed_connected = connected;
+        if !connected {
+            health.last_error = Some("Data feed disconnected".to_string());
+        }
+    }
+
+    /// Update health status for broker connection
+    pub async fn update_health_broker(&self, connected: bool) {
+        let mut health = self.health.write().await;
+        health.broker_connected = connected;
+        if !connected {
+            health.last_error = Some("Broker disconnected".to_string());
+        }
+    }
+
     /// Send alert
     pub async fn send_alert(&self, alert: Alert) {
         // Check cooldown
