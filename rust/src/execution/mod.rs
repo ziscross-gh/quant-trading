@@ -95,16 +95,19 @@ impl AutonomousTrader {
         let regime_detector = RegimeDetector::new(regime_config);
 
         // Initialize production monitoring system
+        let telegram_enabled = production_config.telegram_bot_token.is_some();
         let monitoring_config = MonitoringConfig {
-            telegram_bot_token: production_config.telegram_bot_token,
+            telegram_token: production_config.telegram_bot_token,
             telegram_chat_id: production_config.telegram_chat_id,
+            telegram_enabled,
             max_drawdown_alert_pct: production_config.max_drawdown_alert_pct,
-            max_consecutive_losses: production_config.max_consecutive_losses,
+            max_consecutive_losses: production_config.max_consecutive_losses as usize,
             min_win_rate_alert_pct: production_config.min_win_rate_alert_pct,
             alert_cooldown_secs: 300,
+            daily_reports: true,
             daily_report_hour: 17, // 5 PM
         };
-        let monitoring = MonitoringSystem::new(monitoring_config);
+        let monitoring = MonitoringSystem::new(monitoring_config, config.trading.initial_capital);
 
         info!("{}", "=".repeat(60));
         info!("AUTONOMOUS GOLD/USD TRADING SYSTEM STARTED");

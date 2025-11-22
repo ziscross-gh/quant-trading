@@ -419,18 +419,18 @@ impl MonitoringSystem {
     /// Update health status for data feed connection
     pub async fn update_health_data_feed(&self, connected: bool) {
         let mut health = self.health.write().await;
-        health.data_feed_connected = connected;
+        health.data_connection = connected;
         if !connected {
-            health.last_error = Some("Data feed disconnected".to_string());
+            health.status = SystemStatus::Degraded;
         }
     }
 
     /// Update health status for broker connection
     pub async fn update_health_broker(&self, connected: bool) {
         let mut health = self.health.write().await;
-        health.broker_connected = connected;
+        health.broker_connection = connected;
         if !connected {
-            health.last_error = Some("Broker disconnected".to_string());
+            health.status = SystemStatus::Degraded;
         }
     }
 
